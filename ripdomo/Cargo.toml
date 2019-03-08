@@ -1,0 +1,25 @@
+[package]
+name = "ripdomo"
+version = "0.2.1"
+authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
+description = """
+ripdomo is a fast command line tool to connect to Domo APIs to interact with Domo Datasets and manage your domo instance.
+ripdomo has first class support on Windows, macOS and Linux.
+"""
+readme = "README.md"
+keywords = ["Domo"]
+categories =["command-line-utilities"]
+license = "MIT"
+edition = "2018"
+
+[[bin]]
+path = "src/main.rs"
+name = "ripdomo"
+
+[dependencies]
+csv = "1"
+serde = { version = "1.0", features = ["derive"] }
+rusty_pitchfork = { path = "../rusty-pitchfork" }
+docopt = "1"
+log = "0.4"
+env_logger = "0.6"
