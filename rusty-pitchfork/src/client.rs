@@ -1,9 +1,12 @@
 //! Client for Domo API
+use lazy_static::lazy_static;
 use reqwest::Body;
 use reqwest::Client;
 use reqwest::Method;
 use serde::de::Deserialize;
+use serde::Serialize;
 use serde_json;
+use serde_json::json;
 use serde_json::Value;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -12,15 +15,16 @@ use std::io::Read;
 use std::string::String;
 
 use crate::auth::DomoClientAppCredentials;
-use crate::util::common::convert_map_to_string;
-use crate::error::DomoError;
 use crate::domo::activity_log::ActivityLog;
 use crate::domo::dataset::{Dataset, DatasetSchema};
 use crate::domo::group::GroupInfo;
 use crate::domo::page::{PageCollection, PageInfo};
 use crate::domo::stream::{StreamDataset, StreamDatasetSchema, StreamExecution};
 use crate::domo::user::User;
+use crate::error::DomoError;
+use crate::util::common::convert_map_to_string;
 use crate::util::common::{gzip_csv, gzip_str};
+use crate::util::csv::serialize_to_csv_str;
 
 lazy_static! {
     /// Static HTTP Client for Domo API
@@ -36,37 +40,10 @@ pub struct RustyPitchfork {
     /// Authentication Manager used to authenticate client and
     /// obtain access_token.
     pub auth_manager: Option<DomoClientAppCredentials>,
-    http_method: DomoHttpMethod,
-    api: DomoApi,
-    limit: i32,
-    offset: i32,
 }
 
-#[derive(PartialEq)]
-enum DomoHttpMethod {
-    None,
-    Get,
-    Post,
-    Put,
-    Delete,
-}
 
-enum DatasetApiResult {
-    Dataset(Dataset),
-    Datasets(Vec<Dataset>),
-    Empty,
-}
 
-#[derive(PartialEq)]
-enum DomoApi {
-    NotSet,
-    Datasets,
-    Streams,
-    Users,
-    ActivityLog,
-    Groups,
-    Pages,
-}
 
 impl PitchFork for RustyPitchfork {
     /// Create Authorization HTTP header.
@@ -82,15 +59,11 @@ impl PitchFork for RustyPitchfork {
 }
 
 impl RustyPitchfork {
-    pub fn default() -> RustyPitchfork {
-        RustyPitchfork {
+    pub fn default() -> Self {
+        Self {
             base_uri: "https://api.domo.com/".to_string(),
             access_token: None,
             auth_manager: None,
-            http_method: DomoHttpMethod::None,
-            api: DomoApi::NotSet,
-            limit: 5i32,
-            offset: 0i32,
         }
     }
 
@@ -121,36 +94,7 @@ impl RustyPitchfork {
         self
     }
 
-    pub fn get_item(mut self) -> RustyPitchfork {
-        self.http_method = DomoHttpMethod::Get;
-        self
-    }
-
-    pub fn limit(mut self, lim: i32) -> RustyPitchfork {
-        self.limit = lim;
-        self
-    }
-
-    pub fn offset(mut self, i: i32) -> RustyPitchfork {
-        self.offset = i;
-        self
-    }
-
-    pub fn datasets(&self) -> Result<Vec<Dataset>, DomoError> {
-        match self.http_method {
-            DomoHttpMethod::None => Err(DomoError::Other("No DomoHttpMethod set".to_owned())),
-            DomoHttpMethod::Get => self.list_datasets(self.limit, self.offset),
-            _ => Err(DomoError::Other(
-                "Method Not Implemented for Dataset".to_owned(),
-            )),
-        }
-    }
-
-    pub fn ds(mut self) -> RustyPitchfork {
-        self.api = DomoApi::Datasets;
-        self
-    }
-
+    /// Custom Domo Query.
     pub fn domo_get(
         &self,
         url: &str,
@@ -202,6 +146,19 @@ impl RustyPitchfork {
     }
 
     pub fn replace_data(&self, dataset_id: &str, data_rows: &str) -> Result<String, DomoError> {
+        let url = format!("v1/datasets/{}/data", dataset_id);
+        let result = self
+            .post_csv(Method::PUT, &url, &data_rows)
+            .unwrap_or_default();
+        Ok(result)
+    }
+
+    pub fn replace_data_with_vec<T: Serialize>(
+        &self,
+        dataset_id: &str,
+        data: &[T],
+    ) -> Result<String, DomoError> {
+        let data_rows: String = serialize_to_csv_str(&data)?;
         let url = format!("v1/datasets/{}/data", dataset_id);
         let result = self
             .post_csv(Method::PUT, &url, &data_rows)
@@ -323,6 +280,25 @@ impl RustyPitchfork {
             "v1/streams/{0}/executions/{1}/part/{2}",
             stream_id, execution_id, part
         );
+        let gzipped_data = gzip_str(&csv_part);
+        let _ = self.post_compressed_csv(Method::PUT, &url, gzipped_data)?;
+        Ok(())
+    }
+
+    /// Upload a data part to a stream execution in progress where the data part
+    /// is a `Serializable` vec of T.
+    pub fn upload_data_part_with_vec<T: Serialize>(
+        &self,
+        stream_id: i32,
+        execution_id: i32,
+        part: i32,
+        data: &[T],
+    ) -> Result<(), DomoError> {
+        let url = format!(
+            "v1/streams/{0}/executions/{1}/part/{2}",
+            stream_id, execution_id, part
+        );
+        let csv_part = serialize_to_csv_str(data)?;
         let gzipped_data = gzip_str(&csv_part);
         let _ = self.post_compressed_csv(Method::PUT, &url, gzipped_data)?;
         Ok(())
