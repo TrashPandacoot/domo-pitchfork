@@ -5,7 +5,7 @@
 //!
 //! ## [**Client**](client/index.html)
 //!
-//! The main public module to be used and consumed by Rust Programs. The RustyPitchfork
+//! The main public module to be used and consumed by Rust Programs. The `RustyPitchfork`
 //! struct has all the methods implemented to authenticate, interact, and consume the Domo API
 //!
 //! ## [**Authentication**](authentication/index.html)
@@ -17,18 +17,8 @@
 //!
 //! Module containing all the structs for modeling the data structures needed for interacting with the Domo API
 //! as well as the data that can be retreived from the API
+#![warn(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
-extern crate csv;
-extern crate reqwest;
-// extern crate serde;
-use serde::{Deserialize, Serialize};
-#[macro_use]
-extern crate serde_json;
-extern crate chrono;
-
-#[macro_use]
-extern crate lazy_static;
-
 /// Domo API errors
 pub mod error;
 /// Authentication functionality for interacting with Domo API.

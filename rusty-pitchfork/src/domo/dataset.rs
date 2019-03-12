@@ -207,7 +207,7 @@ fn from_bytes<T: FromStr>(bytes: &[u8]) -> Option<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
+    use serde_json::json;
     #[test]
     fn test_dataset_schema_serialization() {
         let c = Column {

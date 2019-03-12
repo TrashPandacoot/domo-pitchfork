@@ -23,14 +23,6 @@ fn test_get_dataset_list() {
 }
 
 #[test]
-fn test_get_dataset_list_builder() {
-    //
-    let rusty_fork = create_test_rusty_fork();
-    let ds_list: Vec<Dataset> = rusty_fork.get_item().limit(10).datasets().unwrap();
-    assert_eq!(ds_list.len(), 10);
-}
-
-#[test]
 fn test_create_dataset() {
     //TODO: implement test
 }
