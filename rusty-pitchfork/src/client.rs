@@ -68,26 +68,26 @@ impl RustyPitchfork {
     }
 
     /// Set the base uri for the Domo API HTTP requests.
-    pub fn base_uri(mut self, base_uri: &str) -> RustyPitchfork {
+    pub fn base_uri(mut self, base_uri: &str) -> Self {
         self.base_uri = base_uri.to_string();
         self
     }
 
     // TODO: Does this need to be public?
     /// Set the access token
-    pub fn access_token(mut self, access_token: &str) -> RustyPitchfork {
+    pub fn access_token(mut self, access_token: &str) -> Self {
         self.access_token = Some(access_token.to_string());
         self
     }
 
     /// Create the auth manager with given Domo Client Id and Client Secret
-    pub fn auth_manager(mut self, auth_manager: DomoClientAppCredentials) -> RustyPitchfork {
+    pub fn auth_manager(mut self, auth_manager: DomoClientAppCredentials) -> Self {
         self.auth_manager = Some(auth_manager);
         self
     }
 
     /// Create RustyPitchfork Instance
-    pub fn build(self) -> RustyPitchfork {
+    pub fn build(self) -> Self {
         if self.access_token.is_none() && self.auth_manager.is_none() {
             panic!("Token and Auth manager are None");
         }
@@ -533,7 +533,7 @@ pub trait PitchFork {
         url: &str,
         payload: &Value,
     ) -> Result<String, DomoError> {
-        let mut url: Cow<str> = url.into();
+        let mut url: Cow<'_, str> = url.into();
         if !url.starts_with("http") {
             url = ["https://api.domo.com/", &url].concat().into();
         }
@@ -576,7 +576,7 @@ pub trait PitchFork {
         url: &str,
         input_path: &str,
     ) -> Result<String, DomoError> {
-        let mut url: Cow<str> = url.into();
+        let mut url: Cow<'_, str> = url.into();
         if !url.starts_with("https") {
             url = ["https://api.domo.com/", &url].concat().into();
         }
@@ -620,7 +620,7 @@ pub trait PitchFork {
         url: &str,
         string_content: &str,
     ) -> Result<String, DomoError> {
-        let mut url: Cow<str> = url.into();
+        let mut url: Cow<'_, str> = url.into();
         if !url.starts_with("https") {
             url = ["https://api.domo.com/", &url].concat().into();
         }
@@ -663,7 +663,7 @@ pub trait PitchFork {
         url: &str,
         body_content: Vec<u8>,
     ) -> Result<String, DomoError> {
-        let mut url: Cow<str> = url.into();
+        let mut url: Cow<'_, str> = url.into();
         if !url.starts_with("https") {
             url = ["https://api.domo.com/", &url].concat().into();
         }
@@ -702,14 +702,14 @@ pub trait PitchFork {
 
     ///GET request
     fn get(&self, url: &str, params: &HashMap<String, String>) -> Result<String, DomoError> {
-        if !params.is_empty() {
+        if params.is_empty() {
+            self.internal_call(Method::GET, url, &json!({}))
+        } else {
             let param: String = convert_map_to_string(params);
             let mut url_with_params = url.to_owned();
             url_with_params.push('?');
             url_with_params.push_str(&param);
-            self.internal_call(Method::GET, &url_with_params, &json!({})) //looks like this is sending hardcoded empty json body
-        } else {
-            self.internal_call(Method::GET, url, &json!({}))
+            self.internal_call(Method::GET, &url_with_params, &json!({})) 
         }
     }
 

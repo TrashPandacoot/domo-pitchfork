@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_gzip_csv() {
         //TODO: implement test
-        assert!(false);
+        panic!();
     }
 
     #[test]
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_datatime_to_timestamp() {
         //TODO: implement test
-        assert!(false);
+        panic!();
     }
 
 }

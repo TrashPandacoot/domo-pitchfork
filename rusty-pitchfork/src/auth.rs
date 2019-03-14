@@ -42,12 +42,12 @@ impl DomoToken {
         Self {
             access_token: String::new(),
             token_type: String::new(),
-            expires_in: 0u32,
+            expires_in: 0_u32,
             scope: String::new(),
             customer: String::new(),
             env: String::new(),
             jti: String::new(),
-            user_id: 0u32,
+            user_id: 0_u32,
             role: String::new(),
             domain: String::new(),
         }
@@ -226,7 +226,7 @@ fn fetch_access_token(
     params: &str,
 ) -> Option<DomoToken> {
     let client = Client::new();
-    let url: Cow<str> = [
+    let url: Cow<'_, str> = [
         "https://api.domo.com/oauth/token?grant_type=client_credentials&scope=",
         params,
     ]
