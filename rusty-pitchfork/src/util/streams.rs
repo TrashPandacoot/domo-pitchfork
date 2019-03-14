@@ -1,8 +1,8 @@
-extern crate crossbeam;
-extern crate csv;
-extern crate rayon;
-extern crate serde;
-extern crate time;
+use crossbeam;
+use csv;
+use rayon;
+use serde;
+use time::PreciseTime;
 use self::rayon::iter::IntoParallelIterator;
 use crate::auth::DomoClientAppCredentials;
 use crate::client::RustyPitchfork;
@@ -10,7 +10,7 @@ use crate::error::DomoError;
 use crate::util::streams::rayon::prelude::*;
 use serde::Serialize;
 use std::env;
-use reqwest::r#async::{Client, Response, Decoder};
+use reqwest::r#async::{Client, Decoder};
 use futures::{Future, Stream};
 use tokio_core::reactor::Core;
 use std::mem;
@@ -89,9 +89,9 @@ pub fn time<F, T>(f: F) -> (T, f64)
 where
     F: FnOnce() -> T,
 {
-    let start = time::PreciseTime::now();
+    let start = PreciseTime::now();
     let func_res = f();
-    let end = time::PreciseTime::now();
+    let end = PreciseTime::now();
 
     let walltime_nano = start
         .to(end)
@@ -150,7 +150,7 @@ where
     Ok(())
 }
 
-/// This is the same thing as retrieve_and_upload_rayon but with a different implementation. Instead of using rayon,
+/// This is the same thing as `retrieve_and_upload_rayon` but with a different implementation. Instead of using rayon,
 /// this is just using crossbeam and using a fork & join threading method to parallelize it.
 /// Why is there two methods that do the samething? Mostly for the sake of learning, It'll eventually get consolidated
 /// once I've decided which implementation to keep.
@@ -194,14 +194,14 @@ where
     });
 
     // Commit Stream Execution.
-    let _commit_result = domo_client
+    let commit_result = domo_client
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
-    println!("Stream Execution Result: {:?}", _commit_result);
+    println!("Stream Execution Result: {:?}", commit_result);
 
     Ok(())
 }
@@ -236,14 +236,14 @@ where
     });
 
     // Commit Stream Execution.
-    let _commit_result = domo_client
+    let commit_result = domo_client
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
-    println!("Stream Execution Result: {:?}", _commit_result);
+    println!("Stream Execution Result: {:?}", commit_result);
 
     Ok(())
 }
@@ -280,14 +280,14 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     // .unwrap_or(Ok(()))
 
     // Commit Stream Execution.
-    let _commit_result = domo_client
+    let commit_result = domo_client
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
-    println!("Stream Execution Result: {:?}", _commit_result);
+    println!("Stream Execution Result: {:?}", commit_result);
 
     Ok(())
 }

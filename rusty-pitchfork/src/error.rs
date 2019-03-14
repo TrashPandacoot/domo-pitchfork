@@ -19,7 +19,7 @@ pub enum DomoError {
 }
 
 impl fmt::Display for DomoError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DomoError::Reqwest(r) => write!(f, "Reqwest Error: {}", &r),
             DomoError::Csv(c) => write!(f, "Csv Error: {}", &c),
@@ -31,7 +31,7 @@ impl fmt::Display for DomoError {
 }
 
 impl From<csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>> for DomoError {
-    fn from(_err: csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>) -> DomoError {
+    fn from(_err: csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>) -> Self {
         // TODO: figure out why I would leave this error like this.
         // and change it to a more appropriate err type if appropriate.
         DomoError::Pitchfork(2)
@@ -39,7 +39,7 @@ impl From<csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>> for DomoError {
 }
 
 impl From<std::string::FromUtf8Error> for DomoError {
-    fn from(_err: std::string::FromUtf8Error) -> DomoError {
+    fn from(_err: std::string::FromUtf8Error) -> Self {
         // TODO: figure out why I would leave this error like this.
         // and change it to a more appropriate err type if appropriate.
         // learning effort maybe?
@@ -47,17 +47,17 @@ impl From<std::string::FromUtf8Error> for DomoError {
     }
 }
 
-/// Convert JSON serde errors to DomoError type.
+/// Convert JSON serde errors to `DomoError` type.
 impl From<serde_json::Error> for DomoError {
-    fn from(err: serde_json::Error) -> DomoError {
+    fn from(err: serde_json::Error) -> Self {
         DomoError::Serde(err)
     }
 }
 
-// Convert csv crate errors into DomoError type.
+/// Convert csv crate errors into `DomoError` type.
 // This would likely be an error serializing to csv.
 impl From<csv::Error> for DomoError {
-    fn from(err: csv::Error) -> DomoError {
+    fn from(err: csv::Error) -> Self {
         if !err.is_io_error() {
             return DomoError::Csv(err);
         }
@@ -65,33 +65,33 @@ impl From<csv::Error> for DomoError {
     }
 }
 
-// Convert reqwest errors to DomoError type.
+/// Convert reqwest errors to `DomoError` type.
 impl From<reqwest::Error> for DomoError {
-    fn from(err: reqwest::Error) -> DomoError {
+    fn from(err: reqwest::Error) -> Self {
         DomoError::Reqwest(err)
     }
 }
 
 impl From<String> for DomoError {
-    fn from(err: String) -> DomoError {
+    fn from(err: String) -> Self {
         DomoError::Other(err)
     }
 }
 
 impl<'a> From<&'a str> for DomoError {
-    fn from(err: &'a str) -> DomoError {
+    fn from(err: &'a str) -> Self {
         DomoError::Other(err.to_owned())
     }
 }
 
 impl<'a> From<io::Error> for DomoError {
-    fn from(err: io::Error) -> DomoError {
+    fn from(err: io::Error) -> Self {
         DomoError::Other(err.to_string())
     }
 }
 
 impl<'a> From<()> for DomoError {
-    fn from(err: ()) -> DomoError {
+    fn from(_err: ()) -> Self {
         DomoError::Other("() error".to_owned())
     }
 }

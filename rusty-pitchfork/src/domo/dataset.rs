@@ -3,10 +3,10 @@ use super::policy::Policy;
 use super::user::Owner;
 
 use self::FieldType::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::str::{self, FromStr};
-use serde::{Deserialize, Serialize};
 
 //[Dataset object](https://developer.domo.com/docs/dataset-api-reference/dataset#The%20DataSet%20object)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,8 +57,8 @@ impl DatasetSchema {
         name: String,
         description: String,
         col_schema: &HashMap<String, FieldType>,
-    ) -> DatasetSchema {
-        DatasetSchema {
+    ) -> Self {
+        Self {
             name,
             description,
             rows: 0,
@@ -68,7 +68,7 @@ impl DatasetSchema {
 }
 
 impl Schema {
-    pub fn from_hashmap(cols: &HashMap<String, FieldType>) -> Schema {
+    pub fn from_hashmap(cols: &HashMap<String, FieldType>) -> Self {
         let mut columns: Vec<Column> = Vec::new();
         for (col, typ) in cols {
             let typ_str = match typ {
@@ -82,7 +82,7 @@ impl Schema {
                 name: col.to_string(),
             })
         }
-        Schema { columns }
+        Self { columns }
     }
 }
 
@@ -98,10 +98,10 @@ pub enum DomoDataType {
 impl DomoDataType {
     // TODO: document where this is needed
     #[allow(dead_code)]
-    fn from_fieldtype(typ: FieldType) -> DomoDataType {
+    fn from_fieldtype(typ: FieldType) -> Self {
         match typ {
-            TNull => DomoDataType::STRING,
-            TUnicode => DomoDataType::STRING,
+            TNull | TUnicode => DomoDataType::STRING,
+            // TUnicode => DomoDataType::STRING,
             TInteger => DomoDataType::LONG,
             TFloat => DomoDataType::DECIMAL,
             _ => DomoDataType::STRING,
@@ -110,7 +110,7 @@ impl DomoDataType {
 }
 
 impl From<DomoDataType> for String {
-    fn from(domo_type: DomoDataType) -> String {
+    fn from(domo_type: DomoDataType) -> Self {
         match domo_type {
             DomoDataType::STRING => "STRING".to_owned(),
             DomoDataType::LONG => "LONG".to_owned(),
@@ -127,7 +127,7 @@ impl From<DomoDataType> for String {
 pub type Record = HashMap<String, String>;
 pub type CsvColumnTypes = HashMap<String, FieldType>;
 
-pub fn check_field_type(rec: &Record, cols: &mut CsvColumnTypes) -> Result<(), Box<Error>> {
+pub fn check_field_type(rec: &Record, cols: &mut CsvColumnTypes) -> Result<(), Box<dyn Error>> {
     for (key, value) in rec.iter() {
         let typ = FieldType::from_sample(value.as_bytes());
         let cur_typ = cols.entry(key.to_string()).or_insert(typ);
@@ -146,7 +146,7 @@ pub enum FieldType {
 }
 
 impl FieldType {
-    pub fn merge(&mut self, other: FieldType) {
+    pub fn merge(&mut self, other: Self) {
         *self = match (*self, other) {
             (TUnicode, TUnicode) => TUnicode,
             (TFloat, TFloat) => TFloat,
@@ -163,7 +163,7 @@ impl FieldType {
         };
     }
 
-    pub fn from_sample(sample: &[u8]) -> FieldType {
+    pub fn from_sample(sample: &[u8]) -> Self {
         if sample.is_empty() {
             return TNull;
         }
@@ -193,7 +193,7 @@ impl Default for FieldType {
     // The default is the most specific type.
     // Type inference proceeds by assuming the most specific type and then
     // relaxing the type as counter-examples are found.
-    fn default() -> FieldType {
+    fn default() -> Self {
         TNull
     }
 }
@@ -239,27 +239,27 @@ mod tests {
 
     #[test]
     fn test_fieldtype_merge() {
-        assert!(false);
+        panic!();
     }
 
     #[test]
     fn test_fieldtype_from_sample() {
-        assert!(false);
+        panic!();
     }
 
     #[test]
     fn test_check_fieldtype() {
-        assert!(false);
+        panic!();
     }
 
     #[test]
     fn test_schema_from_hashmap() {
-        assert!(false);
+        panic!();
     }
 
     #[test]
     fn test_datasetschema_from_hashmap() {
-        assert!(false);
+        panic!();
     }
 
 }
