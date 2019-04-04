@@ -1,135 +1,105 @@
-extern crate docopt;
-extern crate rusty_pitchfork;
-
-use rusty_pitchfork::auth::DomoClientAppCredentials;
-use rusty_pitchfork::client::RustyPitchfork;
-
-use std::env;
-
-use crate::util;
+use crate::CliCommand;
 use crate::CliResult;
-use serde::Deserialize;
-static USAGE: &'static str = "
-Interact with Domo Users API.
-
-When uploading column order will be the same order as the input and will fail
-if the order doesn't match the user schema in Domo. The schema can automatically
-be updated to match the upload source with the '--update-schema' flag.
-
-Usage:
-    ripdomo user add 
-    ripdomo user remove [options]
-    ripdomo user up [options] <input>
-    ripdomo user info [options]
-    ripdomo user list [options]
-    ripdomo user --help
-    ripdomo user -h
-
-user options:
-    -d, --user-id <id>   Domo user <id> to upload to.
-    -l, --limit <limit>     Limit to return in list users.
-    -s, --skip <offset>     Offset to start Domo Dataset List from.
-
-common options:
-    -h, --help              Display this message
-    -o, --output <file>     Write output to <file> instead of stdout
-";
-
-#[derive(Deserialize)]
-struct Args {
-    cmd_add: bool,
-    cmd_remove: bool,
-    cmd_info: bool,
-    cmd_list: bool,
-    flag_limit: Option<u32>,
-    flag_skip: Option<u32>,
-    flag_user_id: Option<u64>,
+use rusty_pitchfork::auth::DomoClientAppCredentials;
+use rusty_pitchfork::auth::DomoScope;
+use rusty_pitchfork::client::RustyPitchfork;
+use std::env;
+use structopt::StructOpt;
+#[derive(StructOpt, Debug)]
+pub(crate) enum UserCmd {
+    /// List Domo Users
+    #[structopt(name = "create")]
+    List(UsersList),
+    /// Get info for a given User
+    #[structopt(name = "info")]
+    Info(UserInfo),
+    /// Create a new Domo User.
+    #[structopt(name = "create")]
+    Create(UserCreate),
+    /// Delete a Domo User.
+    #[structopt(name = "delete")]
+    Remove(UserDelete),
+    /// Modify a Domo User.
+    #[structopt(name = "modify")]
+    Modify(UserModify),
 }
-
-pub fn run(argv: &[&str]) -> CliResult<()> {
-    let args: Args = util::get_args(USAGE, argv)?;
-    if args.cmd_info {
-        args.user_info()
-    } else if args.cmd_list {
-        args.user_list()
-    } else if args.cmd_add {
-        args.user_add()
-    } else if args.cmd_remove {
-        args.user_remove()
-    } else {
-        unreachable!();
+impl CliCommand for UserCmd {
+    fn run(self) -> CliResult<()> {
+        match self {
+            UserCmd::List(a) => a.run(),
+            UserCmd::Info(a) => a.run(),
+            UserCmd::Create(a) => a.run(),
+            UserCmd::Remove(a) => a.run(),
+            UserCmd::Modify(a) => a.run(),
+        }
     }
 }
 
-impl Args {
-    /// List users given a limit and number to skip. First 500 if no parameters are given.
-    fn user_list(&self) -> CliResult<()> {
-        let lim = match &self.flag_limit {
-            Some(num) => *num,
-            None => 500,
-        };
-
-        let skip = match &self.flag_skip {
-            Some(num) => *num,
-            None => 0,
-        };
-
+#[derive(StructOpt, Debug)]
+pub(crate) struct UsersList {
+    #[structopt(short = "l", long = "limit", default_value = "50")]
+    limit: u32,
+    #[structopt(short = "s", long = "offset", default_value = "0")]
+    offset: u32,
+}
+impl CliCommand for UsersList {
+    fn run(self) -> CliResult<()> {
         let domo = get_client();
-        let users = domo.list_users(lim, skip)?;
+        let users = domo.list_users(self.limit, self.offset)?;
         println!("{:?}", users);
         Ok(())
     }
+}
 
-    /// Print Info for a given user.
-    fn user_info(&self) -> CliResult<()> {
-        let user_id = match &self.flag_user_id {
-            Some(id) => id.to_owned(),
-            _ => return fail!("No Dataset Id Given"),
-        };
-
+#[derive(StructOpt, Debug)]
+pub(crate) struct UserInfo {
+    /// User ID.
+    #[structopt(name = "id")]
+    user_id: u64,
+}
+impl CliCommand for UserInfo {
+    fn run(self) -> CliResult<()> {
         let domo = get_client();
-        let info = domo.user(user_id)?;
+        let info = domo.user(self.user_id)?;
         println!("{:?}", info);
         Ok(())
     }
+}
 
-    /// Create a new Domo user.
-    /// TODO: implement add new user(s) command
-    fn user_add(&self) -> CliResult<()> {
-        //println!("{:?}", user);
-        // let user = User {
-        //     name: "".to_string(),
-        //     email: "".to_string(),
-        //     role: "".to_string(),
-        //     title: "".to_string(),
-        //     alternate_email: "".to_string(),
-        //     phone: "".to_string(),
-        //     location: "".to_string(),
-        //     timezone: "".to_string(),
-        //     image_uri: "".to_string(),
-        //     employee_number: "".to_string(),
-        // };
-        // let domo = get_client();
-        // let new_user = domo.create_user(user)?;
-        // println!("User Name: {}", new_user.name);
-        println!("Not Yet Implemented");
-
+#[derive(StructOpt, Debug)]
+pub(crate) struct UserCreate {
+    /// User ID.
+    #[structopt(name = "id")]
+    user_id: u64,
+}
+impl CliCommand for UserCreate {
+    fn run(self) -> CliResult<()> {
+        unimplemented!()
+    }
+}
+#[derive(StructOpt, Debug)]
+pub(crate) struct UserDelete {
+    /// User ID.
+    #[structopt(name = "id")]
+    user_id: u64,
+}
+impl CliCommand for UserDelete {
+    fn run(self) -> CliResult<()> {
+        let domo = get_client();
+        domo.delete_user(self.user_id)?;
         Ok(())
     }
+}
 
-    // TODO: create Update user(s) command
-
-    /// Delete a given Domo user.
-    fn user_remove(&self) -> CliResult<()> {
-        println!("DS remove");
-        let user_id = match &self.flag_user_id {
-            Some(id) => id.to_owned(),
-            _ => return fail!("No User Id Given"),
-        };
-
-        let domo = get_client();
-        domo.delete_user(user_id)?;
-        Ok(())
+#[derive(StructOpt, Debug)]
+pub(crate) struct UserModify {
+    /// User ID.
+    #[structopt(name = "id")]
+    user_id: u64,
+}
+impl CliCommand for UserModify {
+    fn run(self) -> CliResult<()> {
+        unimplemented!()
     }
 }
 
@@ -140,6 +110,12 @@ fn get_client() -> RustyPitchfork {
     let client_creds = DomoClientAppCredentials::default()
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
+        .client_scope(DomoScope {
+            data: false,
+            user: true,
+            audit: false,
+            dashboard: false,
+        })
         .build();
     RustyPitchfork::default().auth_manager(client_creds).build()
 }

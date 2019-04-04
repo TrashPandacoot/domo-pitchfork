@@ -1,6 +1,6 @@
 [package]
 name = "ripdomo"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 description = """
 ripdomo is a fast command line tool to connect to Domo APIs to interact with Domo Datasets and manage your domo instance.
@@ -20,6 +20,6 @@ name = "ripdomo"
 csv = "1"
 serde = { version = "1.0", features = ["derive"] }
 rusty_pitchfork = { path = "../rusty-pitchfork" }
-docopt = "1"
 log = "0.4"
 env_logger = "0.6"
+structopt = "0.2.15"
