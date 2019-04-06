@@ -1,2 +1,3 @@
 [workspace]
 members = ["ripdomo","rusty-pitchfork"]
+default-members = ["rusty-pitchfork"]

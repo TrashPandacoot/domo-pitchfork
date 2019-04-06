@@ -1,4 +1,3 @@
-extern crate dotenv;
 extern crate rusty_pitchfork;
 
 use rusty_pitchfork::auth::DomoClientAppCredentials;
@@ -68,9 +67,8 @@ fn test_delete_dataset() {
 }
 
 fn create_test_rusty_fork() -> RustyPitchfork {
-    dotenv::dotenv().ok();
-    let domo_client_id = env::var("DOMO_CLIENT_ID").unwrap();
-    let domo_secret = env::var("DOMO_SECRET").unwrap();
+    let domo_client_id = env::var("DOMO_CLIENT_ID").expect("No DOMO_CLIENT_ID env var found");
+    let domo_secret = env::var("DOMO_SECRET").expect("No DOMO_SECRET env var found");
     let client_creds = DomoClientAppCredentials::default()
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
