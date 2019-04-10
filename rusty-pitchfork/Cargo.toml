@@ -1,6 +1,6 @@
 [package]
-name = "rusty_pitchfork"
-version = "0.6.0"
+name = "domo_pitchfork"
+version = "1.0.0"
 authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"

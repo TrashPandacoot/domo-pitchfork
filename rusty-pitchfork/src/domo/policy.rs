@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Policy {
-    pub id: i32,
+    pub id: u32,
     pub name: String,
     #[serde(rename = "type")]
     pub policy_type: String,
     #[serde(rename = "users")]
-    pub user_ids: Vec<i32>,
+    pub user_ids: Vec<u64>,
     #[serde(rename = "groups")]
-    pub group_ids: Vec<i32>,
+    pub group_ids: Vec<u64>,
     pub filters: Vec<Filter>,
 }
 

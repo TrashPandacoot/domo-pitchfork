@@ -28,6 +28,9 @@ pub struct DomoScope {
     pub user: bool,
     pub audit: bool,
     pub dashboard: bool,
+    pub buzz: bool,
+    pub account: bool,
+    pub workflow: bool,
 }
 
 pub struct DomoClientAppCredentials {
@@ -93,6 +96,9 @@ impl DomoClientAppCredentials {
                 user: user_scope,
                 audit: audit_scope,
                 dashboard: dashboard_scope,
+                buzz: false,
+                account: false,
+                workflow: false,
             };
             Self {
                 client_id,
@@ -106,6 +112,9 @@ impl DomoClientAppCredentials {
                 user: false,
                 audit: false,
                 dashboard: false,
+                buzz: false,
+                account: false,
+                workflow: false,
             };
             Self {
                 client_id,

@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
-
+use crate::pitchfork::{DomoRequest, ActivitiesRequestBuilder};
+use crate::error::DomoError;
+use log::debug;
+use reqwest::Method;
+use std::marker::PhantomData;
 // [Activity Log Entry object](https://developer.domo.com/docs/activity-log-api-reference/activity-log)
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ActivityLog {
+pub struct ActivityLogEntry {
     #[serde(rename = "userName")]
     pub user_name: String,
     #[serde(rename = "userId")]
@@ -29,4 +33,60 @@ pub struct ActivityLog {
     pub browser_details: String,
     #[serde(rename = "ipAddress")]
     pub ip_address: String,
+}
+
+#[derive(Debug)]
+pub struct ActivityLogSearchQuery {
+    pub user_id: Option<String>,
+    /// The start time(milliseconds) of when you want to receive log events
+    pub start: u64,
+    /// The end time(milliseconds) of when you want to receive log events
+    pub end: Option<u64>,
+    /// The maximum number of events you want to retrieve. Default is 50, maximum is 1000.
+    pub limit: Option<u32>,
+    /// The offset location of events you retrieve. Default is 0.
+    pub offset: Option<u32>,
+}
+impl ActivityLogSearchQuery {
+    pub(crate) fn to_query_string(&mut self) -> String {
+        let mut s = String::new();
+        s.push_str("start=");
+        s.push_str(&self.start.to_string());
+        if self.end.is_some() {
+            s.push_str("&end=");
+            s.push_str(self.end.take().unwrap().to_string().as_ref());
+        }
+        if self.limit.is_some() {
+            s.push_str("&limit=");
+            s.push_str(self.limit.take().unwrap().to_string().as_ref());
+        }
+        if self.offset.is_some() {
+            s.push_str("&offset=");
+            s.push_str(self.offset.take().unwrap().to_string().as_ref());
+        }
+        if self.user_id.is_some() {
+            s.push_str("&user=");
+            s.push_str(self.user_id.take().unwrap().as_ref());
+        }
+        s
+    }
+}
+impl<'t> ActivitiesRequestBuilder<'t, ActivityLogEntry> {
+    /// Returns a list of Domo activity log entries that meet the search criteria.
+    pub fn search(mut self, mut query: ActivityLogSearchQuery) -> Result<Vec<ActivityLogEntry>, DomoError> {
+        let q = query.to_query_string();
+        self.url
+            .push_str(&format!("/audit?{}", q));
+        debug!("[Activity Log API] {}", self.url);
+        let req = Self {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let res = req.send_json()?;
+        let ds_list = serde_json::from_reader(res)?;
+        Ok(ds_list)
+    }
 }

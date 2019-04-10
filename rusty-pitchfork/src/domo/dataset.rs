@@ -1,14 +1,324 @@
-// Domo Dataset Objects
+//! Domo Dataset API
+//! 
+//! [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
+use crate::util::csv::serialize_to_csv_str;
+use serde_json::Value;
+use serde_json::json;
 use super::policy::Policy;
 use super::user::Owner;
 
-use self::FieldType::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::str::{self, FromStr};
+use crate::pitchfork::{DomoRequest, DatasetsRequestBuilder};
+use crate::error::DomoError;
+use log::debug;
+use reqwest::Method;
+use std::marker::PhantomData;
 
-//[Dataset object](https://developer.domo.com/docs/dataset-api-reference/dataset#The%20DataSet%20object)
+impl<'t> DatasetsRequestBuilder<'t, Dataset> {
+    /// Retreives details for a `Dataset`
+    pub fn info(mut self, dataset_id: &str) -> Result<Dataset, DomoError> {
+        self.url.push_str(dataset_id);
+        let req = Self {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        req.retrieve_and_deserialize_json()
+    }
+
+    /// List Datasets starting from a given offset up to a given limit.
+    /// Max limit is 50.
+    /// # Example
+    /// ```no_run
+    /// use rusty_pitchfork::domo_man::DomoManager;
+    /// use rusty_pitchfork::domo_man::DomoRequest;
+    /// let domo = DomoManager::with_token("token");
+    /// let ds_info = domo.datasets().info("dataset_id");
+    /// match ds_info {
+    ///     Ok(ds) => println!("{:?}",ds),
+    ///     Err(e) => println!("{}", e)
+    /// };
+    /// ```
+    pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<Dataset>, DomoError> {
+        // TODO: impl sort optional query param
+        self.url
+            .push_str(&format!("?limit={}&offset={}", limit, offset));
+        let req = Self {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let ds_list = serde_json::from_reader(req.send_json()?)?;
+        Ok(ds_list)
+    }
+
+    /// Create a new empty Domo Dataset.
+    pub fn create(self, ds_meta: &DatasetSchema) -> Result<Dataset, DomoError> {
+        let body = serde_json::to_string(ds_meta)?;
+        debug!("body: {}", body);
+        let req = Self {
+            method: Method::POST,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(body),
+        };
+        req.retrieve_and_deserialize_json()
+    }
+
+    /// Delete the dataset for the given id.
+    /// This is destructive and cannot be reversed.
+    /// # Example
+    /// ```no_run
+    /// # use rusty_pitchfork::domo_man::DomoManager;
+    /// # use rusty_pitchfork::domo_man::DomoRequest;
+    /// # let token = "token_here"
+    /// let domo = DomoManager::with_token(&token);
+    /// let d = domo.datasets()
+    ///             .delete("ds_id");
+    /// // if it fails to delete
+    /// if let Err(e) = d {
+    ///     println!("{}", e) 
+    /// } 
+    /// ```
+    pub fn delete(mut self, dataset_id: &str) -> Result<(), DomoError> {
+        self.url.push_str(dataset_id);
+        let req = Self {
+            method: Method::DELETE,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let res = req.send_json()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
+        }
+    }
+
+    /// Modify an existing Domo Dataset.
+    pub fn modify(
+        mut self,
+        dataset_id: &str,
+        ds_meta: &DatasetSchema,
+    ) -> Result<Dataset, DomoError> {
+        self.url.push_str(dataset_id);
+        let body = serde_json::to_string(ds_meta)?;
+        debug!("body: {}", body);
+        let req = Self {
+            method: Method::PUT,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(body),
+        };
+        let ds = serde_json::from_reader(req.send_json()?)?;
+        Ok(ds)
+    }
+
+    /// Returns data from the DataSet based on a SQL query.
+    /// # Example
+    /// ```no_run
+    /// # use rusty_pitchfork::domo_man::DomoManager;
+    /// # use rusty_pitchfork::domo_man::DomoRequest;
+    /// # let token = "token_here"
+    /// let domo = DomoManager::with_token(&token);
+    /// let dq = domo.datasets()
+    ///             .query_data("ds_id", "SELECT * FROM table");
+    /// match dq {
+    ///     Ok(query_result) => {
+    ///         println!("{:#?}", query_result);
+    ///     },
+    ///     Err(e) => println!("{}", e),
+    /// };
+    /// ```
+    /// [Domo Dataset API Query Reference](https://developer.domo.com/docs/dataset-api-reference/dataset#Query%20a%20DataSet)
+    pub fn query_data(mut self, dataset_id: &str, sql_query: &str) -> Result<DatasetQueryData, DomoError> {
+        self.url.push_str(&format!("query/execute/{}", dataset_id));
+        let body = json!({ "sql": sql_query });
+        let req = Self {
+            method: Method::POST,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(body.to_string()),
+        };
+        let dq = serde_json::from_reader(req.send_json()?)?;
+        Ok(dq)
+    }
+
+    /// Retreive data from a Domo Dataset.
+    pub fn download_data(
+        mut self,
+        dataset_id: &str,
+        include_csv_headers: bool,
+    ) -> Result<String, DomoError> {
+        self.url.push_str(&format!(
+            "{}/data?includeHeader={}",
+            dataset_id, include_csv_headers
+        ));
+        let req = DatasetsRequestBuilder {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        req.run()
+    }
+
+    /// Upload data to the Domo Dataset.
+    pub fn upload_from_str(mut self, dataset_id: &str, data_rows: String) -> Result<(), DomoError> {
+        self.url.push_str(&format!("{}/data", dataset_id));
+        let req = Self {
+            method: Method::PUT,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(data_rows),
+        };
+        let mut res = req.send_csv()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+        }
+    }
+
+    /// Upload data to the Domo Dataset.
+    pub fn upload_serializable<T: Serialize>(mut self, dataset_id: &str, data: &[T]) -> Result<(), DomoError> {
+        self.url.push_str(&format!("{}/data", dataset_id));
+        let req = Self {
+            method: Method::PUT,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(serialize_to_csv_str(&data)?),
+        };
+        let mut res = req.send_csv()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+        }
+    }
+
+    /// Retrieves details of a given policy for a Dataset
+    pub fn pdp_policy_info(mut self, dataset_id: &str, policy_id: u32) -> Result<Policy, DomoError> {
+        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+        let req = Self {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let dq = serde_json::from_reader(req.send_json()?)?;
+        Ok(dq)
+    }
+
+    /// Add a new PDP Policty to a dataset.
+    pub fn add_pdp_policy(mut self, dataset_id: &str, policy: &Policy) -> Result<Policy, DomoError> {
+        self.url.push_str(&format!("{}/policies", dataset_id));
+        let body = serde_json::to_string(policy)?;
+        debug!("body: {}", body);
+        let req = Self {
+            method: Method::POST,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(body),
+        };
+        let ds = serde_json::from_reader(req.send_json()?)?;
+        Ok(ds)
+    }
+
+    /// Modify an existing PDP Policy on a dataset.
+    pub fn modify_pdp_policy(mut self, dataset_id: &str, policy_id: u32, policy: &Policy) -> Result<Policy, DomoError> {
+        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+        let body = serde_json::to_string(policy)?;
+        debug!("body: {}", body);
+        let req = Self {
+            method: Method::PUT,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: Some(body),
+        };
+        let ds = serde_json::from_reader(req.send_json()?)?;
+        Ok(ds)
+    }
+
+    /// Delete a PDP policy from a Dataset
+    pub fn delete_pdp_policy(mut self, dataset_id: &str, policy_id: u32) -> Result<(), DomoError> {
+        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+        let req = Self {
+            method: Method::DELETE,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let mut res = req.send_json()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+        }
+    }
+
+    /// Retrieves a list of all policies for a Dataset
+    pub fn policies(mut self, dataset_id: &str) -> Result<Vec<Policy>, DomoError> {
+        self.url.push_str(&format!("{}/policies", dataset_id));
+        let req = Self {
+            method: Method::GET,
+            auth: self.auth,
+            url: self.url,
+            resp_t: PhantomData,
+            body: None,
+        };
+        let dq = serde_json::from_reader(req.send_json()?)?;
+        Ok(dq)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DatasetQueryData {
+    pub datasource: String,
+    pub columns: Vec<String>,
+    pub metadata: Vec<DataQueryMetadata>,
+    pub rows: Vec<Vec<Value>>, // Array of Arrays
+    #[serde(rename = "numRows")]
+    pub num_rows: u64,
+    #[serde(rename = "numColumns")]
+    pub num_columns: u16,
+    #[serde(rename = "fromcache")]
+    pub from_cache: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DataQueryMetadata {
+    #[serde(rename = "type")]
+    pub data_type: String,
+    #[serde(rename = "dataSourceId")]
+    pub data_source_id: String,
+    #[serde(rename = "maxLength")]
+    pub max_lenth: i32,
+    #[serde(rename = "minLength")]
+    pub min_length: i32,
+    #[serde(rename = "periodIndex")]
+    pub period_index: i32,
+}
+///[Dataset object](https://developer.domo.com/docs/dataset-api-reference/dataset#The%20DataSet%20object)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dataset {
     pub id: String,
@@ -38,7 +348,7 @@ pub struct DatasetSchema {
 }
 
 // TODO: Fix Link
-//[Schema Object](https://developer.domo.com/)
+///[Schema Object](https://developer.domo.com/)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Schema {
     #[serde(rename = "columns")]
@@ -72,9 +382,9 @@ impl Schema {
         let mut columns: Vec<Column> = Vec::new();
         for (col, typ) in cols {
             let typ_str = match typ {
-                TUnicode => "STRING".to_string(),
-                TFloat => "DOUBLE".to_string(),
-                TInteger => "LONG".to_string(),
+                FieldType::TUnicode => "STRING".to_string(),
+                FieldType::TFloat => "DOUBLE".to_string(),
+                FieldType::TInteger => "LONG".to_string(),
                 _ => "STRING".to_string(),
             };
             columns.push(Column {
@@ -100,10 +410,10 @@ impl DomoDataType {
     #[allow(dead_code)]
     fn from_fieldtype(typ: FieldType) -> Self {
         match typ {
-            TNull | TUnicode => DomoDataType::STRING,
+            FieldType::TNull | FieldType::TUnicode => DomoDataType::STRING,
             // TUnicode => DomoDataType::STRING,
-            TInteger => DomoDataType::LONG,
-            TFloat => DomoDataType::DECIMAL,
+            FieldType::TInteger => DomoDataType::LONG,
+            FieldType::TFloat => DomoDataType::DECIMAL,
             _ => DomoDataType::STRING,
         }
     }
@@ -148,44 +458,44 @@ pub enum FieldType {
 impl FieldType {
     pub fn merge(&mut self, other: Self) {
         *self = match (*self, other) {
-            (TUnicode, TUnicode) => TUnicode,
-            (TFloat, TFloat) => TFloat,
-            (TInteger, TInteger) => TInteger,
+            (FieldType::TUnicode, FieldType::TUnicode) => FieldType::TUnicode,
+            (FieldType::TFloat, FieldType::TFloat) => FieldType::TFloat,
+            (FieldType::TInteger, FieldType::TInteger) => FieldType::TInteger,
             // Null does not impact the type.
-            (TNull, any) | (any, TNull) => any,
+            (FieldType::TNull, any) | (any, FieldType::TNull) => any,
             // There's no way to get around an unknown.
-            (TUnknown, _) | (_, TUnknown) => TUnknown,
+            (FieldType::TUnknown, _) | (_, FieldType::TUnknown) => FieldType::TUnknown,
             // Integers can degrade to floats.
-            (TFloat, TInteger) | (TInteger, TFloat) => TFloat,
+            (FieldType::TFloat, FieldType::TInteger) | (FieldType::TInteger, FieldType::TFloat) => FieldType::TFloat,
             // Numbers can degrade to Unicode strings.
-            (TUnicode, TFloat) | (TFloat, TUnicode) => TUnicode,
-            (TUnicode, TInteger) | (TInteger, TUnicode) => TUnicode,
+            (FieldType::TUnicode, FieldType::TFloat) | (FieldType::TFloat, FieldType::TUnicode) => FieldType::TUnicode,
+            (FieldType::TUnicode, FieldType::TInteger) | (FieldType::TInteger, FieldType::TUnicode) => FieldType::TUnicode,
         };
     }
 
     pub fn from_sample(sample: &[u8]) -> Self {
         if sample.is_empty() {
-            return TNull;
+            return FieldType::TNull;
         }
         let string = match str::from_utf8(sample) {
-            Err(_) => return TUnknown,
+            Err(_) => return FieldType::TUnknown,
             Ok(s) => s,
         };
         if string.parse::<i64>().is_ok() {
-            return TInteger;
+            return FieldType::TInteger;
         }
         if string.parse::<f64>().is_ok() {
-            return TFloat;
+            return FieldType::TFloat;
         }
-        TUnicode
+        FieldType::TUnicode
     }
 
     pub fn is_number(self) -> bool {
-        self == TFloat || self == TInteger
+        self == FieldType::TFloat || self == FieldType::TInteger
     }
 
     pub fn is_null(self) -> bool {
-        self == TNull
+        self == FieldType::TNull
     }
 }
 
@@ -194,7 +504,7 @@ impl Default for FieldType {
     // Type inference proceeds by assuming the most specific type and then
     // relaxing the type as counter-examples are found.
     fn default() -> Self {
-        TNull
+        FieldType::TNull
     }
 }
 

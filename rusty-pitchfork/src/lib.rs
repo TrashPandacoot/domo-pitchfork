@@ -23,9 +23,9 @@
 pub mod error;
 /// Authentication functionality for interacting with Domo API.
 pub mod auth;
-/// Client Implementation. Main public module of the library.
-pub mod client;
 /// Domo API Types
 pub mod domo;
 /// Generic Utility Functions.
 pub mod util;
+/// Main Domo API Client.
+pub mod pitchfork;
