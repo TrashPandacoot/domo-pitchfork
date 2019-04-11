@@ -92,7 +92,7 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
 
     /// Delete a given Domo Stream.
     /// Warning: this action is destructive and cannot be reversed.
-    pub fn delete(mut self, stream_id: u32) -> Result<(), DomoError> {
+    pub fn delete(mut self, stream_id: u64) -> Result<(), DomoError> {
         self.url.push_str(&stream_id.to_string());
         let req = Self {
             method: Method::DELETE,
