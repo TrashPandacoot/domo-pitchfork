@@ -1,17 +1,18 @@
 use crate::CliCommand;
 use crate::CliResult;
+use crate::CliError;
 use csv;
 use log::{debug, info, trace};
-use rusty_pitchfork::auth::DomoClientAppCredentials;
-use rusty_pitchfork::auth::DomoScope;
-use rusty_pitchfork::client::RustyPitchfork;
-use rusty_pitchfork::domo::dataset::check_field_type;
-use rusty_pitchfork::domo::dataset::Column;
-use rusty_pitchfork::domo::dataset::DatasetSchema;
-use rusty_pitchfork::domo::dataset::FieldType;
-use rusty_pitchfork::domo::dataset::Record;
-use rusty_pitchfork::domo::dataset::Schema;
-use rusty_pitchfork::domo::stream::StreamDatasetSchema;
+use domo_pitchfork::auth::DomoClientAppCredentials;
+use domo_pitchfork::auth::DomoScope;
+use domo_pitchfork::pitchfork::DomoPitchfork;
+use domo_pitchfork::domo::dataset::check_field_type;
+use domo_pitchfork::domo::dataset::Column;
+use domo_pitchfork::domo::dataset::DatasetSchema;
+use domo_pitchfork::domo::dataset::FieldType;
+use domo_pitchfork::domo::dataset::Record;
+use domo_pitchfork::domo::dataset::Schema;
+use domo_pitchfork::domo::stream::{StreamSearchQuery, StreamDatasetSchema};
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -117,8 +118,9 @@ impl CliCommand for StreamAdd {
             update_method: up_method,
         };
 
-        let domo = get_client();
-        let new_stream = domo.create_stream(stream_ds)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let new_stream = domo.streams().create(&stream_ds)?;
         info!("Created stream for dataset with {} columns", col_count);
         println!("Stream ID: {}", &new_stream.id);
 
@@ -130,14 +132,15 @@ impl CliCommand for StreamAdd {
 pub(crate) struct StreamList {
     #[structopt(short = "l", long = "limit", default_value = "50")]
     //TODO: check what domo doc says is range
-    limit: i32,
+    limit: u32,
     #[structopt(short = "s", long = "offset", default_value = "0")]
-    offset: i32,
+    offset: u32,
 }
 impl CliCommand for StreamList {
     fn run(self) -> CliResult<()> {
-        let domo = get_client();
-        let streams = domo.list_streams(self.limit, self.offset)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let streams = domo.streams().list(self.limit, self.offset)?;
         info!("Retreived {} streams", streams.len());
         println!("{:#?}", streams);
         Ok(())
@@ -145,13 +148,23 @@ impl CliCommand for StreamList {
 }
 #[derive(StructOpt, Debug)]
 pub(crate) struct StreamSearch {
-    #[structopt(name = "dataset id")]
-    dataset_id: String,
+    #[structopt(short = "id", long = "datasetid")]
+    dataset_id: Option<String>,
+    #[structopt(short = "owner", long = "ownerid")]
+    dataset_owner_id: Option<u64>,
 }
 impl CliCommand for StreamSearch {
     fn run(self) -> CliResult<()> {
-        let domo = get_client();
-        let streams = domo.search_stream_by_dataset_id(&self.dataset_id)?; //list_streams_by_owner(1704739518i32)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let query = if self.dataset_id.is_some() {
+            StreamSearchQuery::DatasetId(self.dataset_id.as_ref().unwrap().clone())
+        } else if self.dataset_owner_id.is_some() {
+            StreamSearchQuery::DatasetOwnerId(*self.dataset_owner_id.as_ref().unwrap())
+        } else {
+            return Err(CliError::from("No stream search parameters provided"))
+        };
+        let streams = domo.streams().search(query)?; //list_streams_by_owner(1704739518i32)?;
         println!("{:#?}", streams);
         Ok(())
     }
@@ -159,12 +172,13 @@ impl CliCommand for StreamSearch {
 #[derive(StructOpt, Debug)]
 pub(crate) struct StreamInfo {
     #[structopt(name = "stream id")]
-    stream_id: i32,
+    stream_id: u64,
 }
 impl CliCommand for StreamInfo {
     fn run(self) -> CliResult<()> {
-        let domo = get_client();
-        let info = domo.stream_details(self.stream_id)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let info = domo.streams().info(self.stream_id)?;
         println!("{:#?}", info);
         Ok(())
     }
@@ -172,14 +186,15 @@ impl CliCommand for StreamInfo {
 #[derive(StructOpt, Debug)]
 pub(crate) struct StreamRemove {
     #[structopt(name = "stream id")]
-    stream_id: i32,
+    stream_id: u64,
 }
 impl CliCommand for StreamRemove {
     fn run(self) -> CliResult<()> {
         println!("DS remove");
 
-        let domo = get_client();
-        domo.delete_stream(self.stream_id)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        domo.streams().delete(self.stream_id)?;
         Ok(())
     }
 }
@@ -253,20 +268,23 @@ impl CliCommand for StreamExecutionList {
     }
 }
 
-/// returns a `RustyPitchfork` client to use to interact with the Domo API.
-fn get_client() -> RustyPitchfork {
+/// returns a token to use with the `DomoPitchfork` client to use to interact with the Domo API.
+fn token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID").unwrap();
     let domo_secret = env::var("DOMO_SECRET").unwrap();
     trace!("Authenticating with Domo as Client ID: {}", domo_client_id);
     let client_creds = DomoClientAppCredentials::default()
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
-        .client_scope(DomoScope {
+        .client_scope(DomoScope{
             data: true,
             user: false,
             audit: false,
             dashboard: false,
+            buzz: false,
+            account: false,
+            workflow: false,
         })
         .build();
-    RustyPitchfork::default().auth_manager(client_creds).build()
+    client_creds.get_access_token()
 }

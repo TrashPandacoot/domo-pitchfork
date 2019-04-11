@@ -1,10 +1,11 @@
 use crate::CliCommand;
 use crate::CliResult;
-use rusty_pitchfork::auth::DomoClientAppCredentials;
-use rusty_pitchfork::auth::DomoScope;
-use rusty_pitchfork::client::RustyPitchfork;
+use domo_pitchfork::auth::DomoClientAppCredentials;
+use domo_pitchfork::auth::DomoScope;
+use domo_pitchfork::pitchfork::DomoPitchfork;
 use std::env;
 use structopt::StructOpt;
+use log::{trace};
 #[derive(StructOpt, Debug)]
 pub(crate) enum PageCmd {
     #[structopt(name = "list")]
@@ -132,7 +133,7 @@ impl CliCommand for PageCollectionRemove {
 //             None => 0,
 //         };
 
-//         let domo = get_client();
+//         let domo = DomoPitchfork::with_token(&token);
 //         let pages = domo.list_pages(lim, skip)?;
 //         println!("{:?}", pages);
 //         Ok(())
@@ -145,7 +146,7 @@ impl CliCommand for PageCollectionRemove {
 //             _ => return fail!("No Dataset Id Given"),
 //         };
 
-//         let domo = get_client();
+//         let domo = DomoPitchfork::with_token(&token);
 //         let info = domo.page(page_id)?;
 //         println!("{:?}", info);
 //         Ok(())
@@ -159,7 +160,7 @@ impl CliCommand for PageCollectionRemove {
 //         //     name: "".to_string(),
 //         //     id: 0u64,
 //         // };
-//         // let domo = get_client();
+//         // let domo = DomoPitchfork::with_token(&token);
 //         // let new_page = domo.create_page(page)?;
 //         // println!("Page Name: {}", new_page.name);
 //         println!("Not Yet Implemented");
@@ -177,25 +178,29 @@ impl CliCommand for PageCollectionRemove {
 //             _ => return fail!("No Page Id Given"),
 //         };
 
-//         let domo = get_client();
+//         let domo = DomoPitchfork::with_token(&token);
 //         domo.delete_page(page_id)?;
 //         Ok(())
 //     }
 // }
 
-/// returns a `RustyPitchfork` client to use to interact with the Domo API.
-fn get_client() -> RustyPitchfork {
+/// returns a token to use with the `DomoPitchfork` client to use to interact with the Domo API.
+fn token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID").unwrap();
     let domo_secret = env::var("DOMO_SECRET").unwrap();
+    trace!("Authenticating with Domo as Client ID: {}", domo_client_id);
     let client_creds = DomoClientAppCredentials::default()
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
-        .client_scope(DomoScope {
+        .client_scope(DomoScope{
             data: false,
             user: false,
             audit: false,
             dashboard: true,
+            buzz: false,
+            account: false,
+            workflow: false,
         })
         .build();
-    RustyPitchfork::default().auth_manager(client_creds).build()
+    client_creds.get_access_token()
 }

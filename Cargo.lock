@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "ripdomo"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "csv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "domo_pitchfork 1.0.0",

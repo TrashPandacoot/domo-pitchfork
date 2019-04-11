@@ -1,9 +1,9 @@
-use rusty_pitchfork::auth::DomoScope;
+use domo_pitchfork::auth::DomoScope;
 use crate::CliCommand;
 use log::{info, trace};
-use rusty_pitchfork::auth::DomoClientAppCredentials;
-use rusty_pitchfork::client::RustyPitchfork;
-use rusty_pitchfork::domo::dataset::*;
+use domo_pitchfork::auth::DomoClientAppCredentials;
+use domo_pitchfork::pitchfork::DomoPitchfork;
+use domo_pitchfork::domo::dataset::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -75,15 +75,16 @@ impl CliCommand for DatasetModify {
 pub(crate) struct DatasetList {
     #[structopt(short = "l", long = "limit", default_value = "50")]
     //TODO: check what domo doc says is range
-    limit: i32,
+    limit: u32,
     #[structopt(short = "s", long = "offset", default_value = "0")]
-    offset: i32,
+    offset: u32,
 }
 impl CliCommand for DatasetList {
     /// List datasets given a limit and number to skip. First 50 if no parameters are given.
     fn run(self) -> CliResult<()> {
-        let domo = get_client();;
-        let datasets = domo.list_datasets(self.limit, self.offset)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);;
+        let datasets = domo.datasets().list(self.limit, self.offset)?;
         info!("Retrieved {} datasets", datasets.len());
         println!("{:?}", datasets);
         Ok(())
@@ -98,8 +99,9 @@ pub(crate) struct DatasetInfo {
 impl CliCommand for DatasetInfo {
     /// Print Info for a given dataset.
     fn run(self) -> CliResult<()> {
-        let domo = get_client();
-        let info = domo.dataset(&self.dataset_id)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let info = domo.datasets().info(&self.dataset_id)?;
         println!("{:?}", info);
         Ok(())
     }
@@ -115,8 +117,10 @@ pub(crate) struct DatasetData {
 impl CliCommand for DatasetData {
     /// Export a given data set to a file at the given path.
     fn run(self) -> CliResult<()> {
-        let domo = get_client();
-        let data = domo.export_data(&self.dataset_id)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        // TODO: include headers switch
+        let data = domo.datasets().download_data(&self.dataset_id, false)?;
 
         if self.file.is_some() {
             //TODO: Write output to file!
@@ -187,8 +191,9 @@ impl CliCommand for DatasetAdd {
             },
         };
 
-        let domo = get_client();
-        let new_ds = domo.create_dataset(dataset)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        let new_ds = domo.datasets().create(&dataset)?;
         println!("Dataset ID: {}", new_ds.id);
 
         Ok(())
@@ -204,8 +209,9 @@ impl CliCommand for DatasetRemove {
     /// Delete a given Domo dataset.
     fn run(self) -> CliResult<()> {
         println!("DS remove");
-        let domo = get_client();
-        domo.delete_dataset(&self.dataset_id)?;
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
+        domo.datasets().delete(&self.dataset_id)?;
         Ok(())
     }
 }
@@ -239,10 +245,11 @@ impl CliCommand for DatasetUpdate {
             }
         }
 
-        let domo = get_client();
+        let token = token();
+        let domo = DomoPitchfork::with_token(&token);
         // FIXME: need to update this to ensure schema update has columns in correct order since HashMap isn't ordered.
         if self.should_update_schema_if_changed {
-            let domo_schema = domo.dataset(&self.dataset_id).unwrap();
+            let domo_schema = domo.datasets().info(&self.dataset_id).unwrap();
             let ds_name = domo_schema
                 .name
                 .expect("No Dataset Name on Domo Dataset Retrieved");
@@ -255,14 +262,14 @@ impl CliCommand for DatasetUpdate {
             match domo_schema.schema {
                 Some(s) => {
                     if dataset_schema(&dataset.schema, &s) {
-                        domo.update_dataset_meta(&self.dataset_id, dataset)?;
+                        domo.datasets().modify(&self.dataset_id, &dataset)?;
                     }
                 }
                 None => return fail!("Error Getting Schema from Domo"),
             }
         }
 
-        domo.replace_data_with_file(&self.dataset_id, &self.file.to_string_lossy())?;
+        domo.datasets().upload_from_str(&self.dataset_id, std::fs::read_to_string(&self.file)?)?;
 
         println!("Dataset Imported into Domo");
         Ok(())
@@ -275,8 +282,8 @@ fn dataset_schema(ds: &Schema, domo_schema: &Schema) -> bool {
     ds == domo_schema
 }
 
-/// returns a `RustyPitchfork` client to use to interact with the Domo API.
-fn get_client() -> RustyPitchfork {
+/// returns a token to use with the `DomoPitchfork` client to use to interact with the Domo API.
+fn token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID").unwrap();
     let domo_secret = env::var("DOMO_SECRET").unwrap();
     trace!("Authenticating with Domo as Client ID: {}", domo_client_id);
@@ -288,7 +295,10 @@ fn get_client() -> RustyPitchfork {
             user: false,
             audit: false,
             dashboard: false,
+            buzz: false,
+            account: false,
+            workflow: false,
         })
         .build();
-    RustyPitchfork::default().auth_manager(client_creds).build()
+    client_creds.get_access_token()
 }

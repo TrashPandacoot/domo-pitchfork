@@ -123,8 +123,8 @@ impl From<io::Error> for CliError {
     }
 }
 
-impl From<rusty_pitchfork::error::DomoError> for CliError {
-    fn from(_err: rusty_pitchfork::error::DomoError) -> Self {
+impl From<domo_pitchfork::error::DomoError> for CliError {
+    fn from(_err: domo_pitchfork::error::DomoError) -> Self {
         CliError::Other("Rusty Pitchfork Err".to_owned())
     }
 }

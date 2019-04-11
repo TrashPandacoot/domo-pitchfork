@@ -1,6 +1,6 @@
 [package]
 name = "ripdomo"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 description = """
 ripdomo is a fast command line tool to connect to Domo APIs to interact with Domo Datasets and manage your domo instance.
