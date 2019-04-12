@@ -1,11 +1,4 @@
+# Domo Pitchfork
+
 # Introduction 
-An oxidized Domo API SDK and CLI tool. 
-
-## Ripdomo
-A CLI tool for interacting with the Domo API
-
-## Rusty Pitchfork
-A Domo API SDK Library for interacting with the Domo API
-
-# Getting Started
-TODO:
+Domo Pitchfork is a rust lib crate for interacting with Domo's Public API. This lib is what powers the ripdomo CLI tool. 
