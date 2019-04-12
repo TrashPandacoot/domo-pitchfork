@@ -342,7 +342,7 @@ mod tests {
             .client_secret(&domo_secret)
             .build();
         let token = client_creds.get_access_token();
-        let domo = DomoManager::with_token(&token);
+        let domo = DomoPitchfork::with_token(&token);
         let ds_list = domo.datasets().list(5, 0);
         let s_list = domo.streams().list(1, 0);
         match ds_list {
@@ -363,7 +363,7 @@ mod tests {
             .client_secret(&domo_secret)
             .build();
         let token = client_creds.get_access_token();
-        let domo = DomoManager::with_token(&token);
+        let domo = DomoPitchfork::with_token(&token);
         let dq = domo.datasets().query_data(
             "9e325a09-e7da-42b3-a34f-f96a25928d81",
             "SELECT * FROM table WHERE `Order Priority` = 'High'",

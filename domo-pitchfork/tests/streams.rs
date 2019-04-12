@@ -5,16 +5,16 @@ use domo_pitchfork::domo::stream::{StreamDatasetSchema, StreamSearchQuery};
 use domo_pitchfork::domo::dataset::{Column, DatasetSchema, Schema};
 use domo_pitchfork::auth::DomoClientAppCredentials;
 use domo_pitchfork::pitchfork::DomoPitchfork;
-use std::collections::HashMap;
 use std::env;
 
 
 //cargo test --color=always --package rusty_pitchfork --test streams test_list_search_by_dataset_id_params_are_not_ignored_by_domo -- --nocapture
 #[test]
 fn test_list_search_by_dataset_id_params_are_not_ignored_by_domo() {
-    let domo = create_test_rusty_fork();
+        let token = get_domo_token();
+    let domo = DomoPitchfork::with_token(&token);
     let first_five_no_search = domo.streams().list(5, 0).unwrap();
-    let query = StreamSearchQuery::DatasetId(&"d47f9e01-9032-4201-a8c6-e2facc714de3".to_owned());
+    let query = StreamSearchQuery::DatasetId("d47f9e01-9032-4201-a8c6-e2facc714de3".to_owned());
     let search = domo
         .streams()
         .search(query)
@@ -26,7 +26,8 @@ fn test_list_search_by_dataset_id_params_are_not_ignored_by_domo() {
 
 #[test]
 fn test_stream_e2e() {
-    let domo = create_test_rusty_fork();
+        let token = get_domo_token();
+    let domo = DomoPitchfork::with_token(&token);
     let csv = create_test_csv();
     let c = Column {
         column_type: "STRING".to_string(),
@@ -56,11 +57,11 @@ fn test_stream_e2e() {
 
     //let v = serde_json::to_string_pretty(&new_stream_ds).unwrap();
 
-    let stream = domo.streams().create(stream_ds).unwrap();
+    let stream = domo.streams().create(&stream_ds).unwrap();
     let e = domo.streams().create_stream_execution(stream.id).unwrap();
-    domo.streams().upload_part(stream.id, e.id, 1i32, &csv).unwrap();
+    domo.streams().upload_part(stream.id, e.id, 1u32, &csv).unwrap();
     let _commit = domo.streams().commit_execution(stream.id, e.id).unwrap();
-    let _ = domo.streams().delete(stream.id).unwrap();
+    domo.streams().delete(stream.id).unwrap();
     assert_eq!(1, 1);
 }
 
@@ -73,13 +74,12 @@ Capstone,104"
         .to_string()
 }
 
-fn create_test_rusty_fork() -> DomoPitchfork {
+fn get_domo_token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID").expect("No DOMO_CLIENT_ID env var found");
     let domo_secret = env::var("DOMO_SECRET").expect("No DOMO_SECRET env var found");
     let client_creds = DomoClientAppCredentials::default()
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
         .build();
-    let token = client_creds.get_access_token();
-    DomoPitchfork::with_token(&token)
+    client_creds.get_access_token()
 }

@@ -5,7 +5,8 @@ use serde;
 use time::PreciseTime;
 use self::rayon::iter::IntoParallelIterator;
 use crate::auth::DomoClientAppCredentials;
-use crate::client::RustyPitchfork;
+use crate::pitchfork::DomoPitchfork;
+use crate::domo::stream::StreamExecution;
 use crate::error::DomoError;
 use crate::util::streams::rayon::prelude::*;
 use serde::Serialize;
@@ -107,15 +108,16 @@ where
 /// and upload concurrently use one of the other `upload_serializable_data...` methods instead.
 /// i.e. give it a function, a vec of the input param for that function, and a stream id and it will run
 /// the function multiple times, serialize the resulting Vec of data, and upload it to Domo.
-pub fn retrieve_and_upload_rayon<F, A, T>(f: F, a: Vec<A>, stream_id: i32) -> Result<(), DomoError>
+pub fn retrieve_and_upload_rayon<F, A, T>(f: F, a: Vec<A>, stream_id: u64) -> Result<(), DomoError>
 where
     T: Serialize + Send,
     F: Send + Copy + Sync + FnOnce(A) -> Result<Vec<T>, DomoError>,
     A: Send + Clone,
 {
     // Create Stream Execution:
-    let domo_client = create_domo_client();
-    let execution = domo_client
+    let token = get_domo_token();
+    let domo_client = DomoPitchfork::with_token(&token);
+    let execution = domo_client.streams()
         .create_stream_execution(stream_id)
         // .context("Failed to create stream execution")
         ?;
@@ -128,7 +130,7 @@ where
             let data = f(param)
             // .context("failed getting data")
             ?;
-            process_data(stream_id, ex_id, csv_part as i32, &data)
+            process_data(stream_id, ex_id, csv_part as u32, &data)
         })
         .reduce_with(|r1, r2| if r1.is_err() { r1 } else { r2 })
         .unwrap()
@@ -138,7 +140,7 @@ where
     // .unwrap_or(Ok(()))
 
     // Commit Stream Execution.
-    let _commit_result = domo_client
+    let _commit_result = domo_client.streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
@@ -157,7 +159,7 @@ where
 pub fn retreive_and_upload_data_par_fork<F, T, A>(
     f: F,
     a: Vec<A>,
-    stream_id: i32,
+    stream_id: u64,
 ) -> Result<(), DomoError>
 where
     T: Serialize + Send,
@@ -165,11 +167,10 @@ where
     A: Send + Clone,
 {
     // Create Stream Execution:
-    let domo_client = create_domo_client();
-    let execution = domo_client
-        .create_stream_execution(stream_id)
-        // .context("Failed to create stream execution")
-        ?;
+    let token = get_domo_token();
+    let domo_client = DomoPitchfork::with_token(&token);
+    let execution = domo_client.streams()
+        .create_stream_execution(stream_id)?;
     let ex_id = execution.id;
     println!("Created Stream Execution ID {}", ex_id);
     let chunks: usize = 8;
@@ -181,7 +182,7 @@ where
                 for (csv_part, param) in worklist {
                     match f(param) {
                         Ok(data) => {
-                            if let Err(err) = process_data(stream_id, ex_id, csv_part as i32, &data)
+                            if let Err(err) = process_data(stream_id, ex_id, csv_part as u32, &data)
                             {
                                 println!("{:?}", err);
                             }
@@ -195,12 +196,8 @@ where
 
     // Commit Stream Execution.
     let commit_result = domo_client
-        .commit_execution(stream_id, execution.id)
-        // .context(format!(
-        //     "Failed commiting execution {} on stream {}",
-        //     execution.id, stream_id
-        // ))
-        ?;
+        .streams()
+        .commit_execution(stream_id, execution.id)?;
     println!("Stream Execution Result: {:?}", commit_result);
 
     Ok(())
@@ -208,7 +205,7 @@ where
 
 /// A fork & join to chunk, serialize, and upload data in parallel. I.e. it divides the data param into
 /// several chunks, then fork & joins to serialize the chunks to csv and upload to Domo on different threads.
-pub fn upload_serializable_data_par_fork<T>(data: &[T], stream_id: i32) -> Result<(), DomoError>
+pub fn upload_serializable_data_par_fork<T>(data: &[T], stream_id: u64) -> Result<(), DomoError>
 where
     T: Serialize + Send + Clone,
 {
@@ -217,8 +214,10 @@ where
     let worklists = split_vec_into_chunks(&data, NTHREADS);
 
     // Create Stream Execution:
-    let domo_client = create_domo_client();
+    let token = get_domo_token();
+    let domo_client = DomoPitchfork::with_token(&token);
     let execution = domo_client
+        .streams()
         .create_stream_execution(stream_id)
         // .context("Failed to create stream execution")
         ?;
@@ -229,7 +228,7 @@ where
     let _ = crossbeam::scope(|scope| {
         for (csv_part, worklist) in worklists.into_iter().enumerate() {
             scope.spawn(move |_| {
-                process_data(stream_id, ex_id, csv_part as i32, &worklist)
+                process_data(stream_id, ex_id, csv_part as u32, &worklist)
                 // .context("Processing Data Failed")
             });
         }
@@ -237,6 +236,7 @@ where
 
     // Commit Stream Execution.
     let commit_result = domo_client
+        .streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
@@ -255,14 +255,16 @@ where
 /// down at a later point. 
 pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     data: &[T],
-    stream_id: i32,
+    stream_id: u64,
 ) -> Result<(), DomoError> {
     // Divide the work into several chunks.
     const NTHREADS: usize = 8;
     let worklists = split_vec_into_chunks(&data, NTHREADS);
     // Create Stream Execution:
-    let domo_client = create_domo_client();
+    let token = get_domo_token();
+    let domo_client = DomoPitchfork::with_token(&token);
     let execution = domo_client
+        .streams()
         .create_stream_execution(stream_id)
         // .context("Failed to create stream execution")
         ?;
@@ -271,7 +273,7 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     if let Err(err) = worklists
         .into_par_iter()
         .enumerate()
-        .map(|(csv_part, worklist)| process_data(stream_id, ex_id, csv_part as i32, &worklist))
+        .map(|(csv_part, worklist)| process_data(stream_id, ex_id, csv_part as u32, &worklist))
         .reduce_with(|r1, r2| if r1.is_err() { r1 } else { r2 })
         .unwrap()
     {
@@ -281,6 +283,7 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
 
     // Commit Stream Execution.
     let commit_result = domo_client
+        .streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed commiting execution {} on stream {}",
@@ -294,9 +297,9 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
 
 /// A simple serialize to CSV and upload it to Domo.
 fn process_data<T: Serialize>(
-    stream_id: i32,
-    ex_id: i32,
-    csv_part: i32,
+    stream_id: u64,
+    ex_id: u32,
+    csv_part: u32,
     data_chunk: &[T],
 ) -> Result<(), DomoError> {
     let csv = get_upload_csv_ser(&data_chunk)
@@ -324,8 +327,7 @@ fn get_upload_csv_ser<T: Serialize>(data: &[T]) -> Result<String, DomoError> {
     Ok(csv_str)
 }
 
-/// Return `RustyPitchfork` client to interact with Domo API.
-fn create_domo_client() -> RustyPitchfork {
+fn get_domo_token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID")
         // .context("No DOMO_CLIENT_ID Env Var found")
         .unwrap();
@@ -336,18 +338,19 @@ fn create_domo_client() -> RustyPitchfork {
         .client_id(&domo_client_id)
         .client_secret(&domo_secret)
         .build();
-    RustyPitchfork::default().auth_manager(client_creds).build()
+    client_creds.get_access_token()
 }
 
 /// Upload a data part to a Stream Execution.
 fn upload_data_part(
-    stream_id: i32,
-    execution_id: i32,
-    csv_part: i32,
+    stream_id: u64,
+    execution_id: u32,
+    csv_part: u32,
     csv: &str,
-) -> Result<(), DomoError> {
-    let domo_client = create_domo_client();
-    domo_client.upload_data_part(stream_id, execution_id, csv_part, csv)
+) -> Result<StreamExecution, DomoError> {
+    let token = get_domo_token();
+    let domo_client = DomoPitchfork::with_token(&token);
+    domo_client.streams().upload_part(stream_id, execution_id, csv_part, csv)
 }
 
 /// Utility method to break the list of Symbols into chunks for Forking.
