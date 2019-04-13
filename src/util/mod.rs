@@ -1,8 +1,9 @@
 //! Utility Modules
 /// Common Helpers
 pub mod common;
-/// Stream Helper
-#[cfg(feature = "experimental-pitchfork-helper")]
-pub mod streams;
+
+/// Experimental/Unstable Stream Helper
+pub mod unstable;
+
 /// Csv Helper
 pub mod csv;
