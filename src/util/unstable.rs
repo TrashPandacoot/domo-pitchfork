@@ -1,14 +1,12 @@
 use crossbeam;
 use csv;
-use rayon;
+use rayon::prelude::*;
 use serde;
 use time::PreciseTime;
-use self::rayon::iter::IntoParallelIterator;
 use crate::auth::DomoClientAppCredentials;
 use crate::pitchfork::DomoPitchfork;
 use crate::domo::stream::StreamExecution;
 use crate::error::DomoError;
-use crate::util::streams::rayon::prelude::*;
 use serde::Serialize;
 use std::env;
 use reqwest::r#async::{Client, Decoder};

@@ -158,7 +158,7 @@ impl<'t> GroupsRequestBuilder<'t, GroupInfo> {
             body: Some(body),
         };
         let ds = serde_json::from_reader(req.send_json()?)?;
-        Ok(ds)
+        Ok(())
     }
 
     /// Returns a list of user id's that are in a Group
