@@ -1,0 +1,10 @@
+[clog]
+repository = "https://github.com/quantumZebraPDX/domo-pitchfork"
+link-style = "github"
+changelog = "changelog.md"
+from-latest-tag = true
+
+[sections]
+Refactor = ["refactor"]
+Documentation = ["docs"]
+Chore = ["chore"]
