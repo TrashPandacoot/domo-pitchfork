@@ -20,20 +20,20 @@
 
 #### Refactor
 
-* **pitchfork:**  refactor lib ([2436b0be](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2436b0be297793bc74375efa8968668d842ac13a), breaks [#](https://github.com/quantumZebraPDX/domo-pitchfork/issues/))
+* **pitchfork:**  refactor lib ([2436b0be](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2436b0be297793bc74375efa8968668d842ac13a))
 * **ripdomo:**  update to domo_pitchfork v1.0.0 ([a2e310bb](https://github.com/quantumZebraPDX/domo-pitchfork/commit/a2e310bbaa778435b156f60f4212bc101f5ddf43))
 
 #### Breaking Changes
 
 * **pitchfork:**
-  *  change a param to correct type ([f953f962](https://github.com/quantumZebraPDX/domo-pitchfork/commit/f953f9627dab447291a5c7dd00f85c0127419ead), breaks [#](https://github.com/quantumZebraPDX/domo-pitchfork/issues/))
-  *  refactor lib ([2436b0be](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2436b0be297793bc74375efa8968668d842ac13a), breaks [#](https://github.com/quantumZebraPDX/domo-pitchfork/issues/))
+  *  change a param to correct type ([f953f962](https://github.com/quantumZebraPDX/domo-pitchfork/commit/f953f9627dab447291a5c7dd00f85c0127419ead))
+  *  refactor lib ([2436b0be](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2436b0be297793bc74375efa8968668d842ac13a))
 
 #### Bug Fixes
 
 * **pitchfork:**
   *  fix tests and streams util helper ([b63a6679](https://github.com/quantumZebraPDX/domo-pitchfork/commit/b63a66799e676aa27d7fc0508d5422918c54d560))
-  *  change a param to correct type ([f953f962](https://github.com/quantumZebraPDX/domo-pitchfork/commit/f953f9627dab447291a5c7dd00f85c0127419ead), breaks [#](https://github.com/quantumZebraPDX/domo-pitchfork/issues/))
+  *  change a param to correct type ([f953f962](https://github.com/quantumZebraPDX/domo-pitchfork/commit/f953f9627dab447291a5c7dd00f85c0127419ead))
 
 #### Chore
 
