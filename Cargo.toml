@@ -5,8 +5,12 @@ authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"
 description = "Domo API Sdk"
+repository = "https://github.com/quantumZebraPDX/domo-pitchfork"
 keywords=["Domo"]
 edition = "2018"
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
