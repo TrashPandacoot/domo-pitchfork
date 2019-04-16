@@ -1,11 +1,16 @@
 //! Domo Stream API
 //! 
-//! [Domo Stream API Reference](https://developer.domo.com/docs/streams-api-reference/streams)
+//! # [`StreamsRequestBuilder`](`crate::pitchfork::StreamsRequestBuilder`) implements all available stream API endpoints and functionality
+//! 
+//! Additional Resources:
+//! - [Domo's Stream API Reference](https://developer.domo.com/docs/streams-api-reference/streams)
+//! 
 use crate::domo::dataset::Dataset;
 use crate::domo::dataset::DatasetSchema;
 use serde::{Deserialize, Serialize};
 use crate::util::csv::serialize_to_csv_str;
-use crate::pitchfork::{DomoRequest, StreamsRequestBuilder};
+use crate::pitchfork::StreamsRequestBuilder;
+use crate::pitchfork::DomoRequest;
 use crate::error::DomoError;
 use log::debug;
 use reqwest::Method;
@@ -20,8 +25,21 @@ pub enum StreamSearchQuery {
     DatasetId(String),
     DatasetOwnerId(u64),
 }
+
+/// Request Builder for Stream API Endpoints
 impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     /// Retrieve details for a given Domo Stream
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to get details for.
+    /// let stream_info = domo.streams().info(stream_id)?;
+    /// println!("Stream Details: \n{:#?}", stream_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
     pub fn info(mut self, stream_id: u64) -> Result<StreamDataset, DomoError> {
         // TODO: there's an optional fields query param now
         self.url.push_str(&stream_id.to_string());
@@ -38,6 +56,16 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     /// List Domo Streams.
     /// Max limit is 500.
     /// Offset is the offset of the Stream ID to begin list of streams within the response
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let list = domo.streams().list(5,0)?;
+    /// list.iter().map(|s| println!("Dataset Name: {}", s.dataset.name.as_ref().unwrap()));
+    /// # Ok::<(),DomoError>(())
+    /// ```
     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<StreamDataset>, DomoError> {
         self.url
             .push_str(&format!("?limit={}&offset={}", limit, offset));
@@ -53,7 +81,20 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
         Ok(ds_list)
     }
 
-    /// Returns a list of `StreamDataset`s that meet the search query criteria.
+    /// Returns a list of [`StreamDataset`]s that meet the search query criteria.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::domo::stream::StreamSearchQuery;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let user_id = 123; // User Id to search for streams for.
+    /// let query = StreamSearchQuery::DatasetOwnerId(user_id);
+    /// let list = domo.streams().search(query)?;
+    /// list.iter().map(|s| println!("Dataset Name: {}", s.dataset.name.as_ref().unwrap()));
+    /// # Ok::<(),DomoError>(())
+    /// ```
     pub fn search(mut self, query: StreamSearchQuery) -> Result<Vec<StreamDataset>, DomoError> {
         // TODO: optional fields query param
         let q = match query {
@@ -92,6 +133,19 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
 
     /// Delete a given Domo Stream.
     /// Warning: this action is destructive and cannot be reversed.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
+    /// 
+    /// let stream_id = 123; //id of stream to delete.
+    /// // if it fails to delete print err msg.
+    /// if let Err(e) = domo.streams().delete(stream_id) {
+    ///     println!("{}", e) 
+    /// } 
+    /// ```
     pub fn delete(mut self, stream_id: u64) -> Result<(), DomoError> {
         self.url.push_str(&stream_id.to_string());
         let req = Self {
@@ -136,6 +190,17 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     /// Create a `StreamExecution` to upload data parts to and update the data in Domo.
     /// Warning: Creating an Execution on a Stream will abort all other Executions on that Stream. 
     /// Each Stream can only have one active Execution at a time. 
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to create execution for.
+    /// let execution_info = domo.streams().create_stream_execution(stream_id)?;
+    /// println!("Stream Execution Details: \n{:#?}", execution_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
     pub fn create_stream_execution(mut self, stream_id: u64) -> Result<StreamExecution, DomoError> {
         self.url.push_str(&format!("{}/executions", stream_id));
         let req = Self {
@@ -149,7 +214,19 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
         Ok(se)
     }
 
-    /// Details for a `StreamExecutions` for a given `StreamExecution`
+    /// Details for a `StreamExecution` for a given `StreamDataset`
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to get execution info for.
+    /// let ex_id = 1; // execution id to get info for.
+    /// let execution_info = domo.streams().execution_info(stream_id, ex_id)?;
+    /// println!("Stream Execution Details: \n{:#?}", execution_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
     pub fn execution_info(mut self, stream_id: u64, execution_id: u32) -> Result<StreamExecution, DomoError> {
         self.url.push_str(&format!("{}/executions/{}", stream_id, execution_id));
         let req = Self {
@@ -166,6 +243,17 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     /// List Domo Executions for a given Domo Stream.
     /// Max limit is 500.
     /// Offset is the offset of the Stream ID to begin list of streams within the response
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to retrieve executions for.
+    /// let list = domo.streams().list_executions(stream_id, 50,0)?;
+    /// list.iter().map(|s| println!("Execution Id: {}", s.id));
+    /// # Ok::<(),DomoError>(())
+    /// ```
     pub fn list_executions(mut self, stream_id: u64, limit: u32, offset: u32) -> Result<Vec<StreamExecution>, DomoError> {
         self.url
             .push_str(&format!("{}/executions?limit={}&offset={}", stream_id, limit, offset));
@@ -218,6 +306,18 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     }
 
     /// Commit a stream execution and finalize insertion of dataparts into Domo Stream Dataset.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to finish execution for.
+    /// let ex_id = 1; // execution id to finalize and commit.
+    /// let execution_info = domo.streams().commit_execution(stream_id, ex_id)?;
+    /// println!("Stream Execution Details: \n{:#?}", execution_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
     pub fn commit_execution(
         mut self,
         stream_id: u64,
@@ -236,6 +336,18 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     }
 
     /// Abort a stream execution in progress and discard all data parts uploaded to the execution.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let stream_id = 123; // stream id to abort execution for.
+    /// let ex_id = 1; // execution id to abort.
+    /// let execution_info = domo.streams().abort_stream_execution(stream_id, ex_id)?;
+    /// println!("Stream Execution Details: \n{:#?}", execution_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
     pub fn abort_stream_execution(
         mut self,
         stream_id: u64,

@@ -73,6 +73,26 @@ impl ActivityLogSearchQuery {
 }
 impl<'t> ActivitiesRequestBuilder<'t, ActivityLogEntry> {
     /// Returns a list of Domo activity log entries that meet the search criteria.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::domo::activity_log::ActivityLogSearchQuery;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// // Search for the first 1000 log entries for a user
+    /// // starting from 16 Apr 2019 8:35 PDT
+    /// let query = ActivityLogSearchQuery {
+    ///     user_id: Some(1_704_739_518),
+    ///     start: 1_555_428_851_882, // 16 Apr 2019 8:35 PDT
+    ///     end: None,
+    ///     limit: Some(1000), // Max per query is 1000.
+    ///     offset: None, // defaults to 0
+    /// };
+    /// let list = domo.audit().search(query)?;
+    /// list.iter().map(|s| println!("event text: {}", s.event_text));
+    /// # Ok::<(),DomoError>(())
+    /// ```
     pub fn search(mut self, mut query: ActivityLogSearchQuery) -> Result<Vec<ActivityLogEntry>, DomoError> {
         let q = query.to_query_string();
         self.url

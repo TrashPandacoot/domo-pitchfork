@@ -1,6 +1,9 @@
 //! Domo Dataset API
 //! 
-//! [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
+//! # [`DatasetsRequestBuilder`](`crate::pitchfork::DatasetsRequestBuilder`) implements all available dataset API endpoints and functionality
+//! 
+//! Additional Resources:
+//! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
 use crate::util::csv::serialize_to_csv_str;
 use serde_json::Value;
 use serde_json::json;
@@ -19,6 +22,17 @@ use std::marker::PhantomData;
 
 impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Retreives details for a `Dataset`
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let dataset_info = domo.datasets().info("dataset id")?;
+    /// println!("Dataset Details: \n{:#?}", dataset_info);
+    /// # Ok::<(), DomoError>(())
+    /// ```
+    /// 
     pub fn info(mut self, dataset_id: &str) -> Result<Dataset, DomoError> {
         self.url.push_str(dataset_id);
         let req = Self {
@@ -35,14 +49,12 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Max limit is 50.
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let ds_info = domo.datasets().info("dataset_id");
-    /// match ds_info {
-    ///     Ok(ds) => println!("{:?}",ds),
-    ///     Err(e) => println!("{}", e)
-    /// };
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let dataset_list = domo.datasets().list(5,0)?;
+    /// dataset_list.iter().map(|ds| println!("Dataset Name: {}", ds.name.as_ref().unwrap()));
+    /// # Ok::<(),DomoError>(())
     /// ```
     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<Dataset>, DomoError> {
         // TODO: impl sort optional query param
@@ -77,14 +89,12 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// This is destructive and cannot be reversed.
     /// # Example
     /// ```no_run
-    /// # use rusty_pitchfork::domo_man::DomoManager;
-    /// # use rusty_pitchfork::domo_man::DomoRequest;
-    /// # let token = "token_here"
-    /// let domo = DomoManager::with_token(&token);
-    /// let d = domo.datasets()
-    ///             .delete("ds_id");
-    /// // if it fails to delete
-    /// if let Err(e) = d {
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
+    /// 
+    /// // if it fails to delete print err msg.
+    /// if let Err(e) = domo.datasets().delete("ds_id") {
     ///     println!("{}", e) 
     /// } 
     /// ```
@@ -128,10 +138,9 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Returns data from the DataSet based on a SQL query.
     /// # Example
     /// ```no_run
-    /// # use rusty_pitchfork::domo_man::DomoManager;
-    /// # use rusty_pitchfork::domo_man::DomoRequest;
-    /// # let token = "token_here"
-    /// let domo = DomoManager::with_token(&token);
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
     /// let dq = domo.datasets()
     ///             .query_data("ds_id", "SELECT * FROM table");
     /// match dq {

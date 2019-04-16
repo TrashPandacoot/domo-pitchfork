@@ -1,6 +1,9 @@
 //! Domo Users API
 //! 
-//! [Domo Users API Reference](https://developer.domo.com/docs/users-api-reference/users)
+//! # [`UsersRequestBuilder`](`crate::pitchfork::UsersRequestBuilder`) implements all available user API endpoints and functionality
+//! 
+//! Additional Resources:
+//! - [Domo Users API Reference](https://developer.domo.com/docs/users-api-reference/users)
 use crate::domo::group::Group;
 use serde::{Deserialize, Serialize};
 use crate::pitchfork::{DomoRequest, UsersRequestBuilder};
@@ -45,14 +48,13 @@ impl<'t> UsersRequestBuilder<'t, User> {
     /// 
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let ds_info = domo.users().info("user_id");
-    /// match ds_info {
-    ///     Ok(ds) => println!("{:?}",ds),
-    ///     Err(e) => println!("{}", e)
-    /// };
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let user_id = 123; // user id for user to get details for.
+    /// let user_info = domo.users().info(user_id)?;
+    /// println!("User Details: \n{:#?}", user_info);
+    /// # Ok::<(), DomoError>(())
     /// ```
     pub fn info(mut self, user_id: u64) -> Result<User, DomoError> {
         self.url.push_str(&user_id.to_string());
@@ -71,14 +73,12 @@ impl<'t> UsersRequestBuilder<'t, User> {
     /// offset is the offset of the user ID to begin list of users within the response.
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let list = domo.users().list(5,0);
-    /// match list {
-    ///     Ok(ds) => println!("{:?}",ds),
-    ///     Err(e) => println!("{}", e)
-    /// };
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let list = domo.users().list(5,0)?;
+    /// list.iter().map(|u| println!("User Name: {}", u.name.as_ref().unwrap()));
+    /// # Ok::<(),DomoError>(())
     /// ```
     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<User>, DomoError> {
         self.url
@@ -112,14 +112,13 @@ impl<'t> UsersRequestBuilder<'t, User> {
     /// This is destructive and cannot be reversed.
     /// # Example
     /// ```no_run
-    /// # use rusty_pitchfork::domo_man::DomoManager;
-    /// # use rusty_pitchfork::domo_man::DomoRequest;
-    /// # let token = "token_here"
-    /// let domo = DomoManager::with_token(&token);
-    /// let d = domo.users()
-    ///             .delete("user_id");
-    /// // if it fails to delete
-    /// if let Err(e) = d {
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
+    /// 
+    /// let user_id = 123; // user id of user to delete.
+    /// // if it fails to delete, print err msg.
+    /// if let Err(e) = domo.users().delete(user_id) {
     ///     println!("{}", e) 
     /// } 
     /// ```

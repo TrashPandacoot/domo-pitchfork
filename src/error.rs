@@ -2,6 +2,7 @@
 use std::io;
 use std::fmt;
 #[derive(Debug)]
+/// DomoPitchfork Error definitions.
 pub enum DomoError {
     /// Errors from the reqwest crate when HTTP fails
     Reqwest(reqwest::Error),

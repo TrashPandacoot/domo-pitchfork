@@ -1,22 +1,47 @@
-//! # Ripdomo Rusty Pitchfork Library
+//! # Domo Pitchfork Domo SDK
 //!
 //! A Library wrapping the [Domo API](https://developer.domo.com) providing convenient consumption
-//! of Domo Endpoints from Rust Programs
+//! of Domo Endpoints from Rust Programs. Why is it called Domo Pitchfork? Well for awhile Domo's API
+//! documentation was pretty error ridden leading to joking around the office that anytime I was headed
+//! to use the Domo API it was time to "bring out the pitchforks". The other reason is it ends up being 
+//! the pitchfork to move heaps of data in and out of Domo.
+//! 
+//! # Example: Getting a list of Datasets
+//! ```no_run
+//! # use domo_pitchfork::auth::DomoClientAppCredentials;
+//! # use domo_pitchfork::pitchfork::DomoPitchfork;
+//! # use domo_pitchfork::error::DomoError;
+//! let auth = DomoClientAppCredentials::default()
+//!     .client_id("domo client ID here")
+//!     .client_secret("domo secret here")
+//!     .build();
+//! let token = auth.get_access_token();
+//! let domo = DomoPitchfork::with_token(&token);
+//! let dataset_list = domo.datasets().list(5,0)?;
+//! dataset_list.iter().map(|ds| println!("Dataset Name: {}", ds.name.as_ref().unwrap()));
+//! # Ok::<(), DomoError>(())
+//! ```
 //!
-//! ## [**Client**](client/index.html)
+//! ## [**`DomoPitchfork`**](pitchfork/index.html)
 //!
-//! The main public module to be used and consumed by Rust Programs. The `RustyPitchfork`
+//! The main module to be used and consumed by Rust Programs. The `DomoPitchfork`
 //! struct has all the methods implemented to authenticate, interact, and consume the Domo API
 //!
-//! ## [**Authentication**](authentication/index.html)
+//! ## [**Authentication**](auth/index.html)
 //!
 //! Module implementing authentication with the Domo API. This OAuth2 impl is set to use domo client id and secrets
 //! stored as environmental variables if not provided explicitly.
 //!
-//! [**Domo**](domo/index.html)
+//! ## [**Domo APIs**](domo/index.html)
 //!
 //! Module containing all the structs for modeling the data structures needed for interacting with the Domo API
-//! as well as the data that can be retreived from the API
+//! as well as the data that can be retreived from the API. The request builders for each API category are defined and
+//! located within the same file it's models are defined.
+//! 
+//! [**`DomoError`**](error/index.html)
+//! 
+//! Module containing the error definitions for the library.
+//! 
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 /// Domo API errors

@@ -1,6 +1,9 @@
 //! Domo Groups API
 //! 
-//! [Domo Groups API Reference](https://developer.domo.com/docs/groups-api-reference/groups)
+//! # [`GroupsRequestBuilder`](`crate::pitchfork::GroupsRequestBuilder`) implements all available group API endpoints and functionality
+//! 
+//! Additional Resources:
+//! - [Domo Groups API Reference](https://developer.domo.com/docs/groups-api-reference/groups)
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use crate::pitchfork::{DomoRequest, GroupsRequestBuilder};
@@ -38,10 +41,10 @@ impl<'t> GroupsRequestBuilder<'t, GroupInfo> {
     /// 
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let ds_info = domo.groups().info("group_id");
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let group_id = 1;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let ds_info = domo.groups().info(group_id);
     /// match ds_info {
     ///     Ok(ds) => println!("{:?}",ds),
     ///     Err(e) => println!("{}", e)
@@ -64,14 +67,12 @@ impl<'t> GroupsRequestBuilder<'t, GroupInfo> {
     /// Offset is the offset of the group ID to begin list of groups within the response.
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let list = domo.groups().list(5,0);
-    /// match list {
-    ///     Ok(ds) => println!("{:?}",ds),
-    ///     Err(e) => println!("{}", e)
-    /// };
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let group_list = domo.groups().list(5,0)?;
+    /// group_list.iter().map(|g| println!("Group Name: {}", g.name));
+    /// # Ok::<(),DomoError>(())
     /// ```
     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<GroupInfo>, DomoError> {
         self.url
@@ -109,14 +110,13 @@ impl<'t> GroupsRequestBuilder<'t, GroupInfo> {
     /// This is destructive and cannot be reversed.
     /// # Example
     /// ```no_run
-    /// # use rusty_pitchfork::domo_man::DomoManager;
-    /// # use rusty_pitchfork::domo_man::DomoRequest;
-    /// # let token = "token_here"
-    /// let domo = DomoManager::with_token(&token);
-    /// let d = domo.groups()
-    ///             .delete("group_id");
-    /// // if it fails to delete
-    /// if let Err(e) = d {
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
+    /// 
+    /// let group_id = 123; // group id to delete.
+    /// // if it fails to delete, print err msg.
+    /// if let Err(e) = domo.groups().delete(group_id) {
     ///     println!("{}", e) 
     /// } 
     /// ```
@@ -157,8 +157,12 @@ impl<'t> GroupsRequestBuilder<'t, GroupInfo> {
             resp_t: PhantomData,
             body: Some(body),
         };
-        let ds = serde_json::from_reader(req.send_json()?)?;
-        Ok(())
+        let res = req.send_json()?;
+        if res.status().is_success() {
+            Ok(())
+        } else {
+            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
+        }
     }
 
     /// Returns a list of user id's that are in a Group

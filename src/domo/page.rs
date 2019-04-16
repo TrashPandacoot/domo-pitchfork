@@ -54,10 +54,11 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// 
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let ds_info = domo.pages().info("page_id");
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let page_id = 123; // id of page to get details for.
+    /// let ds_info = domo.pages().info(page_id);
     /// match ds_info {
     ///     Ok(ds) => println!("{:?}",ds),
     ///     Err(e) => println!("{}", e)
@@ -78,14 +79,12 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// List Pages starting from a given offset up to a given limit.
     /// # Example
     /// ```no_run
-    /// use rusty_pitchfork::domo_man::DomoManager;
-    /// use rusty_pitchfork::domo_man::DomoRequest;
-    /// let domo = DomoManager::with_token("token");
-    /// let list = domo.pages().list(5,0);
-    /// match list {
-    ///     Ok(ds) => println!("{:?}",ds),
-    ///     Err(e) => println!("{}", e)
-    /// };
+    /// # use domo_pitchfork::error::DomoError;
+    /// use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// let domo = DomoPitchfork::with_token("token");
+    /// let list = domo.pages().list(5,0)?;
+    /// list.iter().map(|p| println!("Page Name: {}", p.name));
+    /// # Ok::<(),DomoError>(())
     /// ```
     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<PageInfo>, DomoError> {
         self.url
@@ -118,14 +117,14 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// This is destructive and cannot be reversed.
     /// # Example
     /// ```no_run
-    /// # use rusty_pitchfork::domo_man::DomoManager;
-    /// # use rusty_pitchfork::domo_man::DomoRequest;
-    /// # let token = "token_here"
-    /// let domo = DomoManager::with_token(&token);
-    /// let d = domo.pages()
-    ///             .delete("page_id");
-    /// // if it fails to delete
-    /// if let Err(e) = d {
+    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::pitchfork::DomoPitchfork;
+    /// # let token = "token_here";
+    /// let domo = DomoPitchfork::with_token(&token);
+    /// 
+    /// let page_id = 123; // id of page to delete.
+    /// // if it fails to delete, print err msg
+    /// if let Err(e) = domo.pages().delete(page_id) {
     ///     println!("{}", e) 
     /// } 
     /// ```

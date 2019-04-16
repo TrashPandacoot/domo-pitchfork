@@ -1,4 +1,4 @@
-//! authorization module
+//! Authorization/Authentication for Domo API.
 //!
 use reqwest::Client;
 use serde_json;
@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::env;
 use std::io::prelude::*;
 
+/// Domo auth token
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DomoToken {
     pub access_token: String,
@@ -23,6 +24,7 @@ pub struct DomoToken {
     pub domain: String,
 }
 
+/// `OAuth` authorization scopes for the Domo API
 pub struct DomoScope {
     pub data: bool,
     pub user: bool,
@@ -33,6 +35,7 @@ pub struct DomoScope {
     pub workflow: bool,
 }
 
+/// Object to use to store/retrieve access tokens for Domo API.
 pub struct DomoClientAppCredentials {
     pub client_id: String,
     pub client_secret: String,
@@ -164,6 +167,7 @@ impl DomoClientAppCredentials {
         self
     }
 
+    /// Get cached Domo auth token or authenticate and retieve a new one
     pub fn get_access_token(&self) -> String {
         match self.token {
             Some(ref token) => {

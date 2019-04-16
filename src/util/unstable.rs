@@ -16,6 +16,7 @@ use std::mem;
 use std::io::{self, Cursor};
 
 
+#[doc(hidden)]
 fn fetch() -> impl Future<Item=(), Error=()> {
     let client = Client::new();
     // let json = |mut res : Response | {
@@ -40,6 +41,7 @@ fn fetch() -> impl Future<Item=(), Error=()> {
                     });
             })
 }
+#[doc(hidden)]
 fn fetch2() -> impl Future<Item=String, Error=()> {
     let client = Client::new();
     // let json = |mut res : Response | {
@@ -71,11 +73,13 @@ fn fetch2() -> impl Future<Item=String, Error=()> {
         
 }
 
+#[doc(hidden)]
 pub fn fetchy() -> Result<(), DomoError> {
     let mut core = Core::new()?;
     core.run(fetch())?;
     Ok(())
 }
+#[doc(hidden)]
 pub fn fetchy2() -> Result<String, DomoError> {
     let mut core = Core::new()?;
     let s = core.run(fetch2())?;
@@ -84,6 +88,7 @@ pub fn fetchy2() -> Result<String, DomoError> {
 
 /// time runs a function given to it and measures function execution time 
 /// and returns the fuction result and time as a tuple.
+#[doc(hidden)]
 pub fn time<F, T>(f: F) -> (T, f64)
 where
     F: FnOnce() -> T,
@@ -106,6 +111,7 @@ where
 /// and upload concurrently use one of the other `upload_serializable_data...` methods instead.
 /// i.e. give it a function, a vec of the input param for that function, and a stream id and it will run
 /// the function multiple times, serialize the resulting Vec of data, and upload it to Domo.
+#[doc(hidden)]
 pub fn retrieve_and_upload_rayon<F, A, T>(f: F, a: Vec<A>, stream_id: u64) -> Result<(), DomoError>
 where
     T: Serialize + Send,
@@ -154,6 +160,7 @@ where
 /// this is just using crossbeam and using a fork & join threading method to parallelize it.
 /// Why is there two methods that do the samething? Mostly for the sake of learning, It'll eventually get consolidated
 /// once I've decided which implementation to keep.
+#[doc(hidden)]
 pub fn retreive_and_upload_data_par_fork<F, T, A>(
     f: F,
     a: Vec<A>,
@@ -203,6 +210,7 @@ where
 
 /// A fork & join to chunk, serialize, and upload data in parallel. I.e. it divides the data param into
 /// several chunks, then fork & joins to serialize the chunks to csv and upload to Domo on different threads.
+#[doc(hidden)]
 pub fn upload_serializable_data_par_fork<T>(data: &[T], stream_id: u64) -> Result<(), DomoError>
 where
     T: Serialize + Send + Clone,
@@ -251,6 +259,7 @@ where
 /// and want to run the serialization/upload steps concurrently.
 /// Similar to the other rayon vs crossbeam methods here, it's for learnings sake and will be consolidated
 /// down at a later point. 
+#[doc(hidden)]
 pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     data: &[T],
     stream_id: u64,
@@ -294,6 +303,7 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
 }
 
 /// A simple serialize to CSV and upload it to Domo.
+#[doc(hidden)]
 fn process_data<T: Serialize>(
     stream_id: u64,
     ex_id: u32,
@@ -311,6 +321,7 @@ fn process_data<T: Serialize>(
     Ok(())
 }
 /// Return CSV string from a Vec of Records to upload to Domo.
+#[doc(hidden)]
 fn get_upload_csv_ser<T: Serialize>(data: &[T]) -> Result<String, DomoError> {
     let mut wtr = csv::Writer::from_writer(vec![]);
     for record in data {
@@ -325,6 +336,7 @@ fn get_upload_csv_ser<T: Serialize>(data: &[T]) -> Result<String, DomoError> {
     Ok(csv_str)
 }
 
+#[doc(hidden)]
 fn get_domo_token() -> String {
     let domo_client_id = env::var("DOMO_CLIENT_ID")
         // .context("No DOMO_CLIENT_ID Env Var found")
@@ -340,6 +352,7 @@ fn get_domo_token() -> String {
 }
 
 /// Upload a data part to a Stream Execution.
+#[doc(hidden)]
 fn upload_data_part(
     stream_id: u64,
     execution_id: u32,
@@ -352,6 +365,7 @@ fn upload_data_part(
 }
 
 /// Utility method to break the list of Symbols into chunks for Forking.
+#[doc(hidden)]
 fn split_vec_into_chunks<T: Clone>(vec_to_split: &[T], chunks: usize) -> Vec<Vec<T>> {
     let chunk_size = vec_to_split.len() / chunks;
     let mut vec_chunks = Vec::new();

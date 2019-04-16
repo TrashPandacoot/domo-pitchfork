@@ -1,8 +1,9 @@
-use crate::domo::page::Page;
-use crate::domo::group::Group;
+use crate::domo::page::PageInfo;
+use crate::domo::group::GroupInfo;
 use crate::domo::user::User;
 use crate::domo::dataset::Dataset;
 use crate::domo::stream::StreamDataset;
+use crate::domo::activity_log::ActivityLogEntry;
 use crate::error::DomoError;
 use lazy_static::lazy_static;
 use reqwest::Client;
@@ -57,14 +58,19 @@ macro_rules! ImplDomoRequests {
 }
 lazy_static! {
     /// Static HTTP Client for Domo API
+    #[doc(hidden)]
     pub static ref CLIENT: Client = Client::new();
 }
+
+/// `DomoPitchfork` is the top-level object to use to interact with the various Domo APIs
 #[derive(Clone)]
 pub struct DomoPitchfork<'t> {
+    /// Domo Auth Token
     auth: &'t str,
 }
 
 impl<'t> DomoPitchfork<'t> {
+    /// Create a new DomoPitchfork with a Domo Auth token
     pub fn with_token(token: &'t str) -> Self {
         Self { auth: token }
     }
@@ -81,12 +87,16 @@ impl<'t> DomoPitchfork<'t> {
         DomoRequestBuilder::new(self.auth, "https://api.domo.com/v1/users/").into()
     }
     /// Interact with Domo Groups API
-    pub fn groups(&self) -> GroupsRequestBuilder<'t, Group> {
+    pub fn groups(&self) -> GroupsRequestBuilder<'t, GroupInfo> {
         DomoRequestBuilder::new(self.auth, "https://api.domo.com/v1/groups/").into()
     }
     /// Interact with Domo Pages API
-    pub fn pages(&self) -> PagesRequestBuilder<'t, Page> {
+    pub fn pages(&self) -> PagesRequestBuilder<'t, PageInfo> {
         DomoRequestBuilder::new(self.auth, "https://api.domo.com/v1/pages/").into()
+    }
+    /// Interact with Domo Activity Log API.
+    pub fn audit(&self) -> ActivitiesRequestBuilder<'t, ActivityLogEntry> {
+        DomoRequestBuilder::new(self.auth, "https://api.domo.com/v1/audit/").into()
     }
     /// Interact with Domo Projects API
     pub fn projects(&self) -> ProjectsRequestBuilder<'t, ()> {
@@ -98,6 +108,7 @@ impl<'t> DomoPitchfork<'t> {
     }
 }
 
+/// Request Builder for all Dataset API interactions
 pub struct DatasetsRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -108,6 +119,8 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+
+/// Request Builder for all Stream API interactions
 pub struct StreamsRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -118,6 +131,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all User API interactions
 pub struct UsersRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -128,6 +142,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all Group API interactions
 pub struct GroupsRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -138,6 +153,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all Page API interactions
 pub struct PagesRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -148,6 +164,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all Activity Log API interactions
 pub struct ActivitiesRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -158,6 +175,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all Account API interactions
 pub struct AccountsRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -168,6 +186,7 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
+/// Request Builder for all Project and Task API interactions
 pub struct ProjectsRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -236,6 +255,7 @@ where
 
 impl<'t, T> DomoRequest<T> for DomoRequestBuilder<'t, T> where for<'de> T: DeserializeOwned {}
 
+/// Base level request info.
 pub trait BaseRequest {
     fn url(&self) -> &str;
     fn auth(&self) -> &str;
@@ -243,6 +263,7 @@ pub trait BaseRequest {
     fn body(&self) -> Option<String>;
 }
 
+/// Defines Domo Requests 
 pub trait DomoRequest<T>: BaseRequest {
     fn run(&self) -> Result<T, DomoError>
     where
