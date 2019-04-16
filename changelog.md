@@ -1,3 +1,15 @@
+<a name="v1.0.0"></a>
+## v1.0.0 (2019-04-16)
+
+
+#### Documentation
+
+*   add example to README ([18d7b1ba](https://github.com/quantumZebraPDX/domo-pitchfork/commit/18d7b1baf51da53d49700e2d7d7026a1b9bce71e))
+*   remove empty links from changelog ([e69c3462](https://github.com/quantumZebraPDX/domo-pitchfork/commit/e69c3462e3716befd3128d534d9ca5d02e3021e3))
+*   Add changelog ([91941cde](https://github.com/quantumZebraPDX/domo-pitchfork/commit/91941cded1265001645ef61fda5f38e1011a0d52))
+
+
+
 <a name="v1.0.0-rc2"></a>
 ## v1.0.0-rc2 (2019-04-16)
 
