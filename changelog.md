@@ -1,3 +1,17 @@
+<a name="v1.0.1"></a>
+### v1.0.1 (2019-04-25)
+
+
+#### Bug Fixes
+
+*   set http failure codes to return DomoError ([a5d16ce2](https://github.com/quantumZebraPDX/domo-pitchfork/commit/a5d16ce2cefcc5971cb6c7c3e65a937c25430f02))
+
+#### Breaking Changes
+
+*   set http failure codes to return DomoError ([a5d16ce2](https://github.com/quantumZebraPDX/domo-pitchfork/commit/a5d16ce2cefcc5971cb6c7c3e65a937c25430f02))
+
+
+
 <a name="v1.0.0"></a>
 ## v1.0.0 (2019-04-16)
 
