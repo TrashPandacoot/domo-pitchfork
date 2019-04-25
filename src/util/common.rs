@@ -1,7 +1,8 @@
 //! utils function
-use flate2;
 use self::flate2::bufread::GzEncoder;
 use self::flate2::Compression;
+use chrono::{DateTime, Utc};
+use flate2;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -10,7 +11,6 @@ use std::io;
 use std::io::prelude::Read;
 use std::io::BufReader;
 use std::string::ToString;
-use chrono::{Utc, DateTime};
 
 pub fn datetime_to_timestamp(elapsed: u32) -> i64 {
     let utc: DateTime<Utc> = Utc::now();
@@ -57,8 +57,8 @@ pub fn gzip_str(data: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::flate2::read::GzDecoder;
+    use super::*;
     // use std::io::prelude::*;
 
     #[test]
@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn test_datatime_to_timestamp() {
+    fn test_datetime_to_timestamp() {
         //TODO: implement test
         panic!();
     }

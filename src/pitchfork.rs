@@ -1,9 +1,9 @@
-use crate::domo::page::PageInfo;
-use crate::domo::group::GroupInfo;
-use crate::domo::user::User;
-use crate::domo::dataset::Dataset;
-use crate::domo::stream::StreamDataset;
 use crate::domo::activity_log::ActivityLogEntry;
+use crate::domo::dataset::Dataset;
+use crate::domo::group::GroupInfo;
+use crate::domo::page::PageInfo;
+use crate::domo::stream::StreamDataset;
+use crate::domo::user::User;
 use crate::error::DomoError;
 use lazy_static::lazy_static;
 use reqwest::Client;
@@ -11,17 +11,8 @@ use reqwest::Method;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
-macro_rules! ImplDomoRequests {
+macro_rules! impl_domo_requests {
     ($i: ident) => {
-        // pub struct $i<'t, T: 't>
-        //     where for<'de> T: DeserializeOwned
-        // {
-        //     pub auth: &'t str,
-        //     pub method: Method,
-        //     pub url: String,
-        //     pub resp_t: PhantomData<*const T>,
-        //     pub body: Option<String>,
-        // }
         impl<'t, T> BaseRequest for $i<'t, T>
         where
             T: DeserializeOwned,
@@ -197,14 +188,14 @@ where
     pub resp_t: PhantomData<*const T>,
     pub body: Option<String>,
 }
-ImplDomoRequests!(StreamsRequestBuilder);
-ImplDomoRequests!(DatasetsRequestBuilder);
-ImplDomoRequests!(UsersRequestBuilder);
-ImplDomoRequests!(GroupsRequestBuilder);
-ImplDomoRequests!(PagesRequestBuilder);
-ImplDomoRequests!(ActivitiesRequestBuilder);
-ImplDomoRequests!(AccountsRequestBuilder);
-ImplDomoRequests!(ProjectsRequestBuilder);
+impl_domo_requests!(StreamsRequestBuilder);
+impl_domo_requests!(DatasetsRequestBuilder);
+impl_domo_requests!(UsersRequestBuilder);
+impl_domo_requests!(GroupsRequestBuilder);
+impl_domo_requests!(PagesRequestBuilder);
+impl_domo_requests!(ActivitiesRequestBuilder);
+impl_domo_requests!(AccountsRequestBuilder);
+impl_domo_requests!(ProjectsRequestBuilder);
 pub struct DomoRequestBuilder<'t, T: 't>
 where
     for<'de> T: DeserializeOwned,
@@ -239,11 +230,11 @@ impl<'t, T> BaseRequest for DomoRequestBuilder<'t, T>
 where
     T: DeserializeOwned,
 {
-    fn auth(&self) -> &str {
-        self.auth
-    }
     fn url(&self) -> &str {
         &self.url[..]
+    }
+    fn auth(&self) -> &str {
+        self.auth
     }
     fn method(&self) -> Method {
         self.method.clone()
@@ -263,7 +254,7 @@ pub trait BaseRequest {
     fn body(&self) -> Option<String>;
 }
 
-/// Defines Domo Requests 
+/// Defines Domo Requests
 pub trait DomoRequest<T>: BaseRequest {
     fn run(&self) -> Result<T, DomoError>
     where
