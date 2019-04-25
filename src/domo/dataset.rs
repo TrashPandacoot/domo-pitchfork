@@ -1,28 +1,28 @@
 //! Domo Dataset API
-//! 
+//!
 //! # [`DatasetsRequestBuilder`](`crate::pitchfork::DatasetsRequestBuilder`) implements all available dataset API endpoints and functionality
-//! 
+//!
 //! Additional Resources:
 //! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
-use crate::util::csv::serialize_to_csv_str;
-use serde_json::Value;
-use serde_json::json;
 use super::policy::Policy;
 use super::user::Owner;
+use crate::util::csv::serialize_to_csv_str;
+use serde_json::json;
+use serde_json::Value;
 
+use crate::error::DomoError;
+use crate::pitchfork::{DatasetsRequestBuilder, DomoRequest};
+use log::debug;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::str::{self, FromStr};
-use crate::pitchfork::{DomoRequest, DatasetsRequestBuilder};
-use crate::error::DomoError;
-use log::debug;
-use reqwest::Method;
 use std::marker::PhantomData;
+use std::str::{self, FromStr};
 
 impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Retreives details for a `Dataset`
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// # use domo_pitchfork::error::DomoError;
@@ -32,7 +32,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// println!("Dataset Details: \n{:#?}", dataset_info);
     /// # Ok::<(), DomoError>(())
     /// ```
-    /// 
+    ///
     pub fn info(mut self, dataset_id: &str) -> Result<Dataset, DomoError> {
         self.url.push_str(dataset_id);
         let req = Self {
@@ -92,11 +92,11 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// # use domo_pitchfork::pitchfork::DomoPitchfork;
     /// # let token = "token_here";
     /// let domo = DomoPitchfork::with_token(&token);
-    /// 
+    ///
     /// // if it fails to delete print err msg.
     /// if let Err(e) = domo.datasets().delete("ds_id") {
-    ///     println!("{}", e) 
-    /// } 
+    ///     println!("{}", e)
+    /// }
     /// ```
     pub fn delete(mut self, dataset_id: &str) -> Result<(), DomoError> {
         self.url.push_str(dataset_id);
@@ -151,7 +151,11 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// };
     /// ```
     /// [Domo Dataset API Query Reference](https://developer.domo.com/docs/dataset-api-reference/dataset#Query%20a%20DataSet)
-    pub fn query_data(mut self, dataset_id: &str, sql_query: &str) -> Result<DatasetQueryData, DomoError> {
+    pub fn query_data(
+        mut self,
+        dataset_id: &str,
+        sql_query: &str,
+    ) -> Result<DatasetQueryData, DomoError> {
         self.url.push_str(&format!("query/execute/{}", dataset_id));
         let body = json!({ "sql": sql_query });
         let req = Self {
@@ -165,7 +169,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         Ok(dq)
     }
 
-    /// Retreive data from a Domo Dataset.
+    /// Retrieve data from a Domo Dataset.
     pub fn download_data(
         mut self,
         dataset_id: &str,
@@ -199,12 +203,20 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+            Err(DomoError::Other(format!(
+                "HTTP Status: {}\nMessage: {}",
+                res.status(),
+                res.text().unwrap_or_else(|_| String::new())
+            )))
         }
     }
 
     /// Upload data to the Domo Dataset.
-    pub fn upload_serializable<T: Serialize>(mut self, dataset_id: &str, data: &[T]) -> Result<(), DomoError> {
+    pub fn upload_serializable<T: Serialize>(
+        mut self,
+        dataset_id: &str,
+        data: &[T],
+    ) -> Result<(), DomoError> {
         self.url.push_str(&format!("{}/data", dataset_id));
         let req = Self {
             method: Method::PUT,
@@ -217,13 +229,22 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+            Err(DomoError::Other(format!(
+                "HTTP Status: {}\nMessage: {}",
+                res.status(),
+                res.text().unwrap_or_else(|_| String::new())
+            )))
         }
     }
 
     /// Retrieves details of a given policy for a Dataset
-    pub fn pdp_policy_info(mut self, dataset_id: &str, policy_id: u32) -> Result<Policy, DomoError> {
-        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+    pub fn pdp_policy_info(
+        mut self,
+        dataset_id: &str,
+        policy_id: u32,
+    ) -> Result<Policy, DomoError> {
+        self.url
+            .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let req = Self {
             method: Method::GET,
             auth: self.auth,
@@ -235,8 +256,12 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         Ok(dq)
     }
 
-    /// Add a new PDP Policty to a dataset.
-    pub fn add_pdp_policy(mut self, dataset_id: &str, policy: &Policy) -> Result<Policy, DomoError> {
+    /// Add a new PDP Policy to a dataset.
+    pub fn add_pdp_policy(
+        mut self,
+        dataset_id: &str,
+        policy: &Policy,
+    ) -> Result<Policy, DomoError> {
         self.url.push_str(&format!("{}/policies", dataset_id));
         let body = serde_json::to_string(policy)?;
         debug!("body: {}", body);
@@ -252,8 +277,14 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     }
 
     /// Modify an existing PDP Policy on a dataset.
-    pub fn modify_pdp_policy(mut self, dataset_id: &str, policy_id: u32, policy: &Policy) -> Result<Policy, DomoError> {
-        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+    pub fn modify_pdp_policy(
+        mut self,
+        dataset_id: &str,
+        policy_id: u32,
+        policy: &Policy,
+    ) -> Result<Policy, DomoError> {
+        self.url
+            .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let body = serde_json::to_string(policy)?;
         debug!("body: {}", body);
         let req = Self {
@@ -269,7 +300,8 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
 
     /// Delete a PDP policy from a Dataset
     pub fn delete_pdp_policy(mut self, dataset_id: &str, policy_id: u32) -> Result<(), DomoError> {
-        self.url.push_str(&format!("{}/policies/{}", dataset_id, policy_id));
+        self.url
+            .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let req = Self {
             method: Method::DELETE,
             auth: self.auth,
@@ -281,7 +313,11 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         if res.status().is_success() {
             Ok(())
         } else {
-            Err(DomoError::Other(format!("HTTP Status: {}\nMessage: {}", res.status(), res.text().unwrap_or_else(|_|String::new()))))
+            Err(DomoError::Other(format!(
+                "HTTP Status: {}\nMessage: {}",
+                res.status(),
+                res.text().unwrap_or_else(|_| String::new())
+            )))
         }
     }
 
@@ -466,20 +502,24 @@ pub enum FieldType {
 
 impl FieldType {
     pub fn merge(&mut self, other: Self) {
-        *self = match (*self, other) {
-            (FieldType::TUnicode, FieldType::TUnicode) => FieldType::TUnicode,
-            (FieldType::TFloat, FieldType::TFloat) => FieldType::TFloat,
-            (FieldType::TInteger, FieldType::TInteger) => FieldType::TInteger,
-            // Null does not impact the type.
-            (FieldType::TNull, any) | (any, FieldType::TNull) => any,
-            // There's no way to get around an unknown.
-            (FieldType::TUnknown, _) | (_, FieldType::TUnknown) => FieldType::TUnknown,
-            // Integers can degrade to floats.
-            (FieldType::TFloat, FieldType::TInteger) | (FieldType::TInteger, FieldType::TFloat) => FieldType::TFloat,
-            // Numbers can degrade to Unicode strings.
-            (FieldType::TUnicode, FieldType::TFloat) | (FieldType::TFloat, FieldType::TUnicode) => FieldType::TUnicode,
-            (FieldType::TUnicode, FieldType::TInteger) | (FieldType::TInteger, FieldType::TUnicode) => FieldType::TUnicode,
-        };
+        *self =
+            match (*self, other) {
+                (FieldType::TUnicode, FieldType::TUnicode) => FieldType::TUnicode,
+                (FieldType::TFloat, FieldType::TFloat) => FieldType::TFloat,
+                (FieldType::TInteger, FieldType::TInteger) => FieldType::TInteger,
+                // Null does not impact the type.
+                (FieldType::TNull, any) | (any, FieldType::TNull) => any,
+                // There's no way to get around an unknown.
+                (FieldType::TUnknown, _) | (_, FieldType::TUnknown) => FieldType::TUnknown,
+                // Integers can degrade to floats.
+                (FieldType::TFloat, FieldType::TInteger)
+                | (FieldType::TInteger, FieldType::TFloat) => FieldType::TFloat,
+                // Numbers can degrade to Unicode strings.
+                (FieldType::TUnicode, FieldType::TFloat)
+                | (FieldType::TFloat, FieldType::TUnicode) => FieldType::TUnicode,
+                (FieldType::TUnicode, FieldType::TInteger)
+                | (FieldType::TInteger, FieldType::TUnicode) => FieldType::TUnicode,
+            };
     }
 
     pub fn from_sample(sample: &[u8]) -> Self {

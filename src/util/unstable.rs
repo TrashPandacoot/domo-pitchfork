@@ -1,76 +1,72 @@
-use crossbeam;
-use csv;
-use rayon::prelude::*;
-use serde;
-use time::PreciseTime;
 use crate::auth::DomoClientAppCredentials;
-use crate::pitchfork::DomoPitchfork;
 use crate::domo::stream::StreamExecution;
 use crate::error::DomoError;
+use crate::pitchfork::DomoPitchfork;
+use crossbeam;
+use csv;
+use futures::{Future, Stream};
+use rayon::prelude::*;
+use reqwest::r#async::{Client, Decoder};
+use serde;
 use serde::Serialize;
 use std::env;
-use reqwest::r#async::{Client, Decoder};
-use futures::{Future, Stream};
-use tokio_core::reactor::Core;
-use std::mem;
 use std::io::{self, Cursor};
-
+use std::mem;
+use time::PreciseTime;
+use tokio_core::reactor::Core;
 
 #[doc(hidden)]
-fn fetch() -> impl Future<Item=(), Error=()> {
+fn fetch() -> impl Future<Item = (), Error = ()> {
     let client = Client::new();
     // let json = |mut res : Response | {
     //     res.json()::<Vec<Dataset>>()
     // };
 
-        client
-            .get("https://domo.com")
-            .send()
-            .and_then(|mut res| {
-                println!("{}", res.status());
+    client
+        .get("https://domo.com")
+        .send()
+        .and_then(|mut res| {
+            println!("{}", res.status());
 
-                let body = mem::replace(res.body_mut(), Decoder::empty());
-                body.concat2()
-            })
-            .map_err(|err| println!("request error: {}", err))
-            .map(|body| {
-                let mut body = Cursor::new(body);
-                let _ = io::copy(&mut body, &mut io::stdout())
-                    .map_err(|err| {
-                        println!("stdout error: {}", err);
-                    });
-            })
+            let body = mem::replace(res.body_mut(), Decoder::empty());
+            body.concat2()
+        })
+        .map_err(|err| println!("request error: {}", err))
+        .map(|body| {
+            let mut body = Cursor::new(body);
+            let _ = io::copy(&mut body, &mut io::stdout()).map_err(|err| {
+                println!("stdout error: {}", err);
+            });
+        })
 }
 #[doc(hidden)]
-fn fetch2() -> impl Future<Item=String, Error=()> {
+fn fetch2() -> impl Future<Item = String, Error = ()> {
     let client = Client::new();
     // let json = |mut res : Response | {
     //     res.json()::<Vec<Dataset>>()
     // };
 
-        client
-            .get("https://domo.com")
-            .send()
-            .and_then(|mut res| {
-                println!("{}", res.status());
+    client
+        .get("https://domo.com")
+        .send()
+        .and_then(|mut res| {
+            println!("{}", res.status());
 
-                let body = mem::replace(res.body_mut(), Decoder::empty());
-                body.concat2()
-            })
-            .map_err(|err| println!("request error: {}", err))
-            .map(|body| {
-                let mut b = vec![];
-                let mut body = Cursor::new(body);
-                let _ = io::copy(&mut body, &mut b)
-                    .map_err(|err| {
-                        println!("stdout error: {}", err);
-                    });
-                let s = String::from_utf8(b).map_err(|err| {
-                    println!("Erro Converting from vec to utf8 str: {}", err);
-                });
-                s.unwrap_or_default()
-            })
-        
+            let body = mem::replace(res.body_mut(), Decoder::empty());
+            body.concat2()
+        })
+        .map_err(|err| println!("request error: {}", err))
+        .map(|body| {
+            let mut b = vec![];
+            let mut body = Cursor::new(body);
+            let _ = io::copy(&mut body, &mut b).map_err(|err| {
+                println!("stdout error: {}", err);
+            });
+            let s = String::from_utf8(b).map_err(|err| {
+                println!("Error Converting from vec to utf8 str: {}", err);
+            });
+            s.unwrap_or_default()
+        })
 }
 
 #[doc(hidden)]
@@ -86,8 +82,8 @@ pub fn fetchy2() -> Result<String, DomoError> {
     Ok(s)
 }
 
-/// time runs a function given to it and measures function execution time 
-/// and returns the fuction result and time as a tuple.
+/// time runs a function given to it and measures function execution time
+/// and returns the function result and time as a tuple.
 #[doc(hidden)]
 pub fn time<F, T>(f: F) -> (T, f64)
 where
@@ -105,7 +101,7 @@ where
     (func_res, walltime_secs)
 }
 
-/// uses rayon to run a function taking a parameter of type A, returning Vecs of records, for every val in Vec<A>
+/// uses rayon to run a function taking a parameter of type A, returning vecs of records, for every val in Vec<A>
 /// Then serializes to csv and uploads the parts concurrently via Domo Streams.
 /// You'd use this method if you can retrieve the data in chunks/concurrently. If you only need to the serialization to csv
 /// and upload concurrently use one of the other `upload_serializable_data...` methods instead.
@@ -147,7 +143,7 @@ where
     let _commit_result = domo_client.streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
-        //     "Failed commiting execution {} on stream {}",
+        //     "Failed committing execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
@@ -174,8 +170,7 @@ where
     // Create Stream Execution:
     let token = get_domo_token();
     let domo_client = DomoPitchfork::with_token(&token);
-    let execution = domo_client.streams()
-        .create_stream_execution(stream_id)?;
+    let execution = domo_client.streams().create_stream_execution(stream_id)?;
     let ex_id = execution.id;
     println!("Created Stream Execution ID {}", ex_id);
     let chunks: usize = 8;
@@ -245,7 +240,7 @@ where
         .streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
-        //     "Failed commiting execution {} on stream {}",
+        //     "Failed committing execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
@@ -257,8 +252,8 @@ where
 /// using rayon instead of crossbeam to parallelize CSV serialization + Upload.
 /// You'd use this method if you already have your entire list of records to serialize into CSV/upload
 /// and want to run the serialization/upload steps concurrently.
-/// Similar to the other rayon vs crossbeam methods here, it's for learnings sake and will be consolidated
-/// down at a later point. 
+/// Similar to the other rayon vs crossbeam methods here, it's for learning's sake and will be consolidated
+/// down at a later point.
 #[doc(hidden)]
 pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     data: &[T],
@@ -293,7 +288,7 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
         .streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
-        //     "Failed commiting execution {} on stream {}",
+        //     "Failed committing execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
@@ -361,7 +356,9 @@ fn upload_data_part(
 ) -> Result<StreamExecution, DomoError> {
     let token = get_domo_token();
     let domo_client = DomoPitchfork::with_token(&token);
-    domo_client.streams().upload_part(stream_id, execution_id, csv_part, csv)
+    domo_client
+        .streams()
+        .upload_part(stream_id, execution_id, csv_part, csv)
 }
 
 /// Utility method to break the list of Symbols into chunks for Forking.

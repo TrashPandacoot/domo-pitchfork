@@ -1,24 +1,19 @@
 extern crate domo_pitchfork;
 extern crate serde_json;
 
-use domo_pitchfork::domo::stream::{StreamDatasetSchema, StreamSearchQuery};
-use domo_pitchfork::domo::dataset::{Column, DatasetSchema, Schema};
 use domo_pitchfork::auth::DomoClientAppCredentials;
+use domo_pitchfork::domo::dataset::{Column, DatasetSchema, Schema};
+use domo_pitchfork::domo::stream::{StreamDatasetSchema, StreamSearchQuery};
 use domo_pitchfork::pitchfork::DomoPitchfork;
 use std::env;
 
-
-//cargo test --color=always --package rusty_pitchfork --test streams test_list_search_by_dataset_id_params_are_not_ignored_by_domo -- --nocapture
 #[test]
 fn test_list_search_by_dataset_id_params_are_not_ignored_by_domo() {
-        let token = get_domo_token();
+    let token = get_domo_token();
     let domo = DomoPitchfork::with_token(&token);
     let first_five_no_search = domo.streams().list(5, 0).unwrap();
     let query = StreamSearchQuery::DatasetId("d47f9e01-9032-4201-a8c6-e2facc714de3".to_owned());
-    let search = domo
-        .streams()
-        .search(query)
-        .unwrap();
+    let search = domo.streams().search(query).unwrap();
     dbg!(first_five_no_search[0].id);
     dbg!(search[0].id);
     assert_ne!(first_five_no_search[0].id, search[0].id);
@@ -26,7 +21,7 @@ fn test_list_search_by_dataset_id_params_are_not_ignored_by_domo() {
 
 #[test]
 fn test_stream_e2e() {
-        let token = get_domo_token();
+    let token = get_domo_token();
     let domo = DomoPitchfork::with_token(&token);
     let csv = create_test_csv();
     let c = Column {
@@ -59,7 +54,9 @@ fn test_stream_e2e() {
 
     let stream = domo.streams().create(&stream_ds).unwrap();
     let e = domo.streams().create_stream_execution(stream.id).unwrap();
-    domo.streams().upload_part(stream.id, e.id, 1u32, &csv).unwrap();
+    domo.streams()
+        .upload_part(stream.id, e.id, 1u32, &csv)
+        .unwrap();
     let _commit = domo.streams().commit_execution(stream.id, e.id).unwrap();
     domo.streams().delete(stream.id).unwrap();
     assert_eq!(1, 1);

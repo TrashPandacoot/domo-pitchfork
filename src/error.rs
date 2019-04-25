@@ -1,6 +1,5 @@
-
-use std::io;
 use std::fmt;
+use std::io;
 #[derive(Debug)]
 /// DomoPitchfork Error definitions.
 pub enum DomoError {
@@ -11,7 +10,7 @@ pub enum DomoError {
     /// These are errors with ser/de JSON in RustyPitchfork.
     Serde(serde_json::Error),
     /// These are errors for RustyPitchfork. Not sure what I intended to
-    /// use the usize for. TODO: figure out why I made it a usize. If it
+    /// use the `usize` for. TODO: figure out why I made it a usize. If it
     /// wasn't just something picked arbitrarily while I was learning error
     /// handling, update the docs here to explain what/why.
     Pitchfork(usize),

@@ -1,8 +1,8 @@
 //! Authorization/Authentication for Domo API.
 //!
 use reqwest::Client;
-use serde_json;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
@@ -78,7 +78,6 @@ impl DomoToken {
         self.scope = scope.to_string();
         self
     }
-
 }
 
 impl DomoClientAppCredentials {
@@ -167,12 +166,10 @@ impl DomoClientAppCredentials {
         self
     }
 
-    /// Get cached Domo auth token or authenticate and retieve a new one
+    /// Get cached Domo auth token or authenticate and retrieve a new one
     pub fn get_access_token(&self) -> String {
         match self.token {
-            Some(ref token) => {
-                token.access_token.to_owned()
-            }
+            Some(ref token) => token.access_token.to_owned(),
             None => {
                 match self.request_access_token() {
                     Some(new_token) => {
@@ -214,8 +211,7 @@ impl DomoClientAppCredentials {
             scopes += &"dashboard".to_string();
         }
 
-        if let Some(token) =
-            self.fetch_access_token(&self.client_id, &self.client_secret, &scopes)
+        if let Some(token) = self.fetch_access_token(&self.client_id, &self.client_secret, &scopes)
         {
             Some(token)
         } else {
@@ -233,11 +229,7 @@ impl DomoClientAppCredentials {
     }
 }
 
-fn fetch_access_token(
-    client_id: &str,
-    client_secret: &str,
-    params: &str,
-) -> Option<DomoToken> {
+fn fetch_access_token(client_id: &str, client_secret: &str, params: &str) -> Option<DomoToken> {
     let client = Client::new();
     let url: Cow<'_, str> = [
         "https://api.domo.com/oauth/token?grant_type=client_credentials&scope=",
