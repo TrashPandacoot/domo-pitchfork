@@ -268,22 +268,11 @@ pub trait DomoRequest<T>: BaseRequest {
             .send()
             .expect("ಠ_ಠ you just got Domo'd");
 
-        // let mut buf = String::new();
-        // response
-        //     .read_to_string(&mut buf)
-        //     .expect("ಠ_ಠ failed to read response");
         if response.status().is_success() {
             let res: T = response.json()?;
             Ok(res)
         } else {
-            //eprintln!("headers: {:?}", &headers);
             eprintln!("response: {:?}", &response);
-            //eprintln!("req body: {}", &string_content);
-            // bail!(
-            //     "request failed, http code:{}, message:{}",
-            //     response.status(),
-            //     &buf
-            // );
             Err(DomoError::Other("post csv file".to_owned()))
         }
     }
@@ -299,43 +288,39 @@ pub trait DomoRequest<T>: BaseRequest {
             .send()
             .expect("ಠ_ಠ you just got Domo'd");
 
-        // let mut buf = String::new();
-        // response
-        //     .read_to_string(&mut buf)
-        //     .expect("ಠ_ಠ failed to read response");
         if response.status().is_success() {
             let res: T = response.json()?;
             Ok(res)
         } else {
-            //eprintln!("headers: {:?}", &headers);
-            eprintln!("response: {:?}", &response);
-            //eprintln!("req body: {}", &string_content);
-            // bail!(
-            //     "request failed, http code:{}, message:{}",
-            //     response.status(),
-            //     &buf
-            // );
-            Err(DomoError::Other("post csv file".to_owned()))
+            Err(DomoError::Other(response.text()?))
         }
     }
 
     fn send_csv(&self) -> Result<reqwest::Response, DomoError> {
-        let response = CLIENT
+        let mut response = CLIENT
             .request(self.method(), self.url())
             .bearer_auth(self.auth())
             .header("Content-Type", "text/csv")
             .body(self.body().take().unwrap_or_default())
             .send()?;
-        Ok(response)
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            Err(DomoError::Other(response.text()?))
+        }
     }
     fn send_json(&self) -> Result<reqwest::Response, DomoError> {
-        let response = CLIENT
+        let mut response = CLIENT
             .request(self.method(), self.url())
             .bearer_auth(self.auth())
             .header("Content-Type", "application/json")
             .body(self.body().take().unwrap_or_default())
             .send()?;
-        Ok(response)
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            Err(DomoError::Other(response.text()?))
+        }
     }
 }
 

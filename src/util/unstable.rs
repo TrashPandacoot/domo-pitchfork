@@ -154,10 +154,10 @@ where
 
 /// This is the same thing as `retrieve_and_upload_rayon` but with a different implementation. Instead of using rayon,
 /// this is just using crossbeam and using a fork & join threading method to parallelize it.
-/// Why is there two methods that do the samething? Mostly for the sake of learning, It'll eventually get consolidated
+/// Why is there two methods that do the same thing? Mostly for the sake of learning, It'll eventually get consolidated
 /// once I've decided which implementation to keep.
 #[doc(hidden)]
-pub fn retreive_and_upload_data_par_fork<F, T, A>(
+pub fn retrieve_and_upload_data_par_fork<F, T, A>(
     f: F,
     a: Vec<A>,
     stream_id: u64,

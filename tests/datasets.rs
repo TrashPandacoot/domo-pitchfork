@@ -2,6 +2,7 @@ extern crate domo_pitchfork;
 
 use domo_pitchfork::auth::DomoClientAppCredentials;
 use domo_pitchfork::domo::dataset::Dataset;
+use domo_pitchfork::error::DomoError;
 use domo_pitchfork::pitchfork::DomoPitchfork;
 use std::env;
 
@@ -23,15 +24,71 @@ fn test_get_dataset_list() {
 }
 
 #[test]
+fn test_dataset_data_query() {
+    let token = get_domo_token();
+    let domo = DomoPitchfork::with_token(&token);
+    let sql_query = "SELECT * FROM table";
+    let ds_id = "447a2858-9c1c-42a9-b90b-a5340268d90e";
+    let data_query = domo.datasets().query_data(ds_id, sql_query);
+    match data_query {
+        Ok(data) => assert_ne!(data.num_columns, 0),
+        Err(e) => panic!("{:#?}", e),
+    }
+}
+
+#[test]
+fn test_bad_column_dataset_data_query() {
+    let token = get_domo_token();
+    let domo = DomoPitchfork::with_token(&token);
+    let sql_query = "SELECT `BAD COLUMN NAME` FROM table";
+    let ds_id = "447a2858-9c1c-42a9-b90b-a5340268d90e";
+    let data_query = domo.datasets().query_data(ds_id, sql_query);
+    match data_query {
+        Ok(_) => panic!("expected a DomoError result not an Ok result"),
+        Err(e) => match e {
+            DomoError::Other(e) => {
+                assert_eq!(
+                    "There was a problem executing the SQL query: Invalid column(s) referenced",
+                    e
+                );
+            }
+            _ => panic!("expected a different DomoError type"),
+        },
+    };
+}
+
+#[test]
+fn test_bad_sql_dataset_data_query() {
+    let token = get_domo_token();
+    let domo = DomoPitchfork::with_token(&token);
+    let sql_query = "SELECT * FROM tablz WHERE ";
+    let ds_id = "447a2858-9c1c-42a9-b90b-a5340268d90e";
+    let data_query = domo.datasets().query_data(ds_id, sql_query);
+    match data_query {
+        Ok(_) => panic!("expected a DomoError result not an Ok result"),
+        Err(e) => match e {
+            DomoError::Other(e) => {
+                assert_eq!(
+                    "There was a problem executing the SQL query: Error processing query request: Unable to parse SQL: SELECT * FROM tablz WHERE ",
+                    e
+                );
+            }
+            _ => panic!("expected a different DomoError type"),
+        },
+    };
+}
+
+#[test]
 fn test_export_dataset_data() {
     let token = get_domo_token();
     let rusty_fork = DomoPitchfork::with_token(&token);
     let csv = rusty_fork
         .datasets()
-        .download_data("77faea51-68ab-4dd3-ae1a-8992bc1b58a8", false)
-        .unwrap_or_default();
-    println!("{}", csv);
-    assert_eq!(1, 1);
+        .download_data("77faea51-68ab-4dd3-ae1a-8992bc1b58a8", false);
+    match csv {
+        Ok(s) => assert_eq!(create_test_csv(), s),
+        Err(e) => panic!("{:#?}", e),
+    };
 }
 
 #[test]
@@ -39,7 +96,9 @@ fn test_replace_dataset_data() {
     let token = get_domo_token();
     let rusty_fork = DomoPitchfork::with_token(&token);
     let csv = create_test_csv();
-    let replace = rusty_fork.datasets().upload_from_str("77faea51-68ab-4dd3-ae1a-8992bc1b58a8", csv);
+    let replace = rusty_fork
+        .datasets()
+        .upload_from_str("77faea51-68ab-4dd3-ae1a-8992bc1b58a8", csv);
     assert!(replace.is_ok());
 }
 
@@ -48,8 +107,9 @@ fn create_test_csv() -> String {
 Test AB,1
 Test BI-Dev,2
 Chaos Monkey,5
-Capstone,104"
-        .to_string()
+Capstone,104
+"
+    .to_string()
 }
 
 fn get_domo_token() -> String {
