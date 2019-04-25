@@ -179,14 +179,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             "{}/data?includeHeader={}",
             dataset_id, include_csv_headers
         ));
-        let req = DatasetsRequestBuilder {
-            method: Method::GET,
-            auth: self.auth,
-            url: self.url,
-            resp_t: PhantomData,
-            body: None,
-        };
-        req.run()
+        self.send_json()?.text().map_err(|e| e.into())
     }
 
     /// Upload data to the Domo Dataset.
@@ -357,7 +350,7 @@ pub struct DataQueryMetadata {
     #[serde(rename = "dataSourceId")]
     pub data_source_id: String,
     #[serde(rename = "maxLength")]
-    pub max_lenth: i32,
+    pub max_length: i32,
     #[serde(rename = "minLength")]
     pub min_length: i32,
     #[serde(rename = "periodIndex")]
