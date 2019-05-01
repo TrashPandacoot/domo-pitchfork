@@ -10,7 +10,7 @@ use crate::util::csv::serialize_to_csv_str;
 use serde_json::json;
 use serde_json::Value;
 
-use crate::error::DomoError;
+use crate::error::{PitchforkError, PitchforkErrorKind};
 use crate::pitchfork::{DatasetsRequestBuilder, DomoRequest};
 use log::debug;
 use reqwest::Method;
@@ -25,15 +25,15 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     ///
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// use domo_pitchfork::pitchfork::DomoPitchfork;
     /// let domo = DomoPitchfork::with_token("token");
     /// let dataset_info = domo.datasets().info("dataset id")?;
     /// println!("Dataset Details: \n{:#?}", dataset_info);
-    /// # Ok::<(), DomoError>(())
+    /// # Ok::<(), PitchforkError>(())
     /// ```
     ///
-    pub fn info(mut self, dataset_id: &str) -> Result<Dataset, DomoError> {
+    pub fn info(mut self, dataset_id: &str) -> Result<Dataset, PitchforkError> {
         self.url.push_str(dataset_id);
         let req = Self {
             method: Method::GET,
@@ -49,14 +49,14 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Max limit is 50.
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// use domo_pitchfork::pitchfork::DomoPitchfork;
     /// let domo = DomoPitchfork::with_token("token");
     /// let dataset_list = domo.datasets().list(5,0)?;
     /// dataset_list.iter().map(|ds| println!("Dataset Name: {}", ds.name.as_ref().unwrap()));
-    /// # Ok::<(),DomoError>(())
+    /// # Ok::<(),PitchforkError>(())
     /// ```
-    pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<Dataset>, DomoError> {
+    pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<Dataset>, PitchforkError> {
         // TODO: impl sort optional query param
         self.url
             .push_str(&format!("?limit={}&offset={}", limit, offset));
@@ -72,7 +72,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     }
 
     /// Create a new empty Domo Dataset.
-    pub fn create(self, ds_meta: &DatasetSchema) -> Result<Dataset, DomoError> {
+    pub fn create(self, ds_meta: &DatasetSchema) -> Result<Dataset, PitchforkError> {
         let body = serde_json::to_string(ds_meta)?;
         debug!("body: {}", body);
         let req = Self {
@@ -98,7 +98,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     ///     println!("{}", e)
     /// }
     /// ```
-    pub fn delete(mut self, dataset_id: &str) -> Result<(), DomoError> {
+    pub fn delete(mut self, dataset_id: &str) -> Result<(), PitchforkError> {
         self.url.push_str(dataset_id);
         let req = Self {
             method: Method::DELETE,
@@ -107,12 +107,8 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             resp_t: PhantomData,
             body: None,
         };
-        let res = req.send_json()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
-        }
+        req.send_json()?;
+        Ok(())
     }
 
     /// Modify an existing Domo Dataset.
@@ -120,7 +116,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         ds_meta: &DatasetSchema,
-    ) -> Result<Dataset, DomoError> {
+    ) -> Result<Dataset, PitchforkError> {
         self.url.push_str(dataset_id);
         let body = serde_json::to_string(ds_meta)?;
         debug!("body: {}", body);
@@ -155,7 +151,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         sql_query: &str,
-    ) -> Result<DatasetQueryData, DomoError> {
+    ) -> Result<DatasetQueryData, PitchforkError> {
         self.url.push_str(&format!("query/execute/{}", dataset_id));
         let body = json!({ "sql": sql_query });
         let req = Self {
@@ -174,16 +170,20 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         include_csv_headers: bool,
-    ) -> Result<String, DomoError> {
+    ) -> Result<String, PitchforkError> {
         self.url.push_str(&format!(
             "{}/data?includeHeader={}",
             dataset_id, include_csv_headers
         ));
-        self.send_json()?.text().map_err(|e| e.into())
+        self.send_json()?.text().map_err(PitchforkError::from)
     }
 
     /// Upload data to the Domo Dataset.
-    pub fn upload_from_str(mut self, dataset_id: &str, data_rows: String) -> Result<(), DomoError> {
+    pub fn upload_from_str(
+        mut self,
+        dataset_id: &str,
+        data_rows: String,
+    ) -> Result<(), PitchforkError> {
         self.url.push_str(&format!("{}/data", dataset_id));
         let req = Self {
             method: Method::PUT,
@@ -192,16 +192,8 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             resp_t: PhantomData,
             body: Some(data_rows),
         };
-        let mut res = req.send_csv()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!(
-                "HTTP Status: {}\nMessage: {}",
-                res.status(),
-                res.text().unwrap_or_else(|_| String::new())
-            )))
-        }
+        req.send_csv()?;
+        Ok(())
     }
 
     /// Upload data to the Domo Dataset.
@@ -209,25 +201,20 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         data: &[T],
-    ) -> Result<(), DomoError> {
+    ) -> Result<(), PitchforkError> {
         self.url.push_str(&format!("{}/data", dataset_id));
         let req = Self {
             method: Method::PUT,
             auth: self.auth,
             url: self.url,
             resp_t: PhantomData,
-            body: Some(serialize_to_csv_str(&data)?),
+            body: Some(
+                serialize_to_csv_str(&data)
+                    .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?,
+            ),
         };
-        let mut res = req.send_csv()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!(
-                "HTTP Status: {}\nMessage: {}",
-                res.status(),
-                res.text().unwrap_or_else(|_| String::new())
-            )))
-        }
+        req.send_csv()?;
+        Ok(())
     }
 
     /// Retrieves details of a given policy for a Dataset
@@ -235,7 +222,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         policy_id: u32,
-    ) -> Result<Policy, DomoError> {
+    ) -> Result<Policy, PitchforkError> {
         self.url
             .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let req = Self {
@@ -254,7 +241,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
         policy: &Policy,
-    ) -> Result<Policy, DomoError> {
+    ) -> Result<Policy, PitchforkError> {
         self.url.push_str(&format!("{}/policies", dataset_id));
         let body = serde_json::to_string(policy)?;
         debug!("body: {}", body);
@@ -275,7 +262,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         dataset_id: &str,
         policy_id: u32,
         policy: &Policy,
-    ) -> Result<Policy, DomoError> {
+    ) -> Result<Policy, PitchforkError> {
         self.url
             .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let body = serde_json::to_string(policy)?;
@@ -292,7 +279,11 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     }
 
     /// Delete a PDP policy from a Dataset
-    pub fn delete_pdp_policy(mut self, dataset_id: &str, policy_id: u32) -> Result<(), DomoError> {
+    pub fn delete_pdp_policy(
+        mut self,
+        dataset_id: &str,
+        policy_id: u32,
+    ) -> Result<(), PitchforkError> {
         self.url
             .push_str(&format!("{}/policies/{}", dataset_id, policy_id));
         let req = Self {
@@ -302,20 +293,12 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             resp_t: PhantomData,
             body: None,
         };
-        let mut res = req.send_json()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!(
-                "HTTP Status: {}\nMessage: {}",
-                res.status(),
-                res.text().unwrap_or_else(|_| String::new())
-            )))
-        }
+        req.send_json()?;
+        Ok(())
     }
 
     /// Retrieves a list of all policies for a Dataset
-    pub fn policies(mut self, dataset_id: &str) -> Result<Vec<Policy>, DomoError> {
+    pub fn policies(mut self, dataset_id: &str) -> Result<Vec<Policy>, PitchforkError> {
         self.url.push_str(&format!("{}/policies", dataset_id));
         let req = Self {
             method: Method::GET,

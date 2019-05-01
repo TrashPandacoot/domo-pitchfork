@@ -2,8 +2,8 @@ extern crate domo_pitchfork;
 
 use domo_pitchfork::auth::DomoClientAppCredentials;
 use domo_pitchfork::domo::dataset::Dataset;
-use domo_pitchfork::error::DomoError;
-use domo_pitchfork::pitchfork::DomoPitchfork;
+use domo_pitchfork::DomoPitchfork;
+use domo_pitchfork::PitchforkErrorKind;
 use std::env;
 
 #[test]
@@ -44,15 +44,16 @@ fn test_bad_column_dataset_data_query() {
     let ds_id = "447a2858-9c1c-42a9-b90b-a5340268d90e";
     let data_query = domo.datasets().query_data(ds_id, sql_query);
     match data_query {
-        Ok(_) => panic!("expected a DomoError result not an Ok result"),
-        Err(e) => match e {
-            DomoError::Other(e) => {
+        Ok(_) => panic!("expected a PitchforkError result not an Ok result"),
+        Err(e) => match e.kind {
+            PitchforkErrorKind::DomoBadRequest(c, e) => {
+                assert_eq!(400, c);
                 assert_eq!(
                     "There was a problem executing the SQL query: Invalid column(s) referenced",
                     e
                 );
             }
-            _ => panic!("expected a different DomoError type"),
+            _ => panic!("expected a different PitchforkError type"),
         },
     };
 }
@@ -65,15 +66,16 @@ fn test_bad_sql_dataset_data_query() {
     let ds_id = "447a2858-9c1c-42a9-b90b-a5340268d90e";
     let data_query = domo.datasets().query_data(ds_id, sql_query);
     match data_query {
-        Ok(_) => panic!("expected a DomoError result not an Ok result"),
-        Err(e) => match e {
-            DomoError::Other(e) => {
+        Ok(_) => panic!("expected a PitchforkError result not an Ok result"),
+        Err(e) => match e.kind {
+            PitchforkErrorKind::DomoBadRequest(c, e) => {
+                assert_eq!(400, c);
                 assert_eq!(
                     "There was a problem executing the SQL query: Error processing query request: Unable to parse SQL: SELECT * FROM tablz WHERE ",
                     e
                 );
             }
-            _ => panic!("expected a different DomoError type"),
+            _ => panic!("expected a different PitchforkError type"),
         },
     };
 }
