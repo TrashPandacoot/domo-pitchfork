@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use crate::error::PitchforkError;
 use crate::pitchfork::{DomoRequest, PagesRequestBuilder};
-use crate::error::DomoError;
 use log::debug;
 use reqwest::Method;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 // [Page Object](https://developer.domo.com/docs/page-api-reference/page)
@@ -51,10 +51,10 @@ pub struct PageCollection {
 }
 impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// Info for a given Page
-    /// 
+    ///
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// use domo_pitchfork::pitchfork::DomoPitchfork;
     /// let domo = DomoPitchfork::with_token("token");
     /// let page_id = 123; // id of page to get details for.
@@ -64,7 +64,7 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     ///     Err(e) => println!("{}", e)
     /// };
     /// ```
-    pub fn info(mut self, page_id: u64) -> Result<PageInfo, DomoError> {
+    pub fn info(mut self, page_id: u64) -> Result<PageInfo, PitchforkError> {
         self.url.push_str(&page_id.to_string());
         let req = Self {
             method: Method::GET,
@@ -79,14 +79,14 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// List Pages starting from a given offset up to a given limit.
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// use domo_pitchfork::pitchfork::DomoPitchfork;
     /// let domo = DomoPitchfork::with_token("token");
     /// let list = domo.pages().list(5,0)?;
     /// list.iter().map(|p| println!("Page Name: {}", p.name));
-    /// # Ok::<(),DomoError>(())
+    /// # Ok::<(),PitchforkError>(())
     /// ```
-    pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<PageInfo>, DomoError> {
+    pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<PageInfo>, PitchforkError> {
         self.url
             .push_str(&format!("?limit={}&offset={}", limit, offset));
         let req = Self {
@@ -100,7 +100,7 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
         Ok(ds_list)
     }
 
-    pub fn create(self, page: &PageInfo) -> Result<PageInfo, DomoError> {
+    pub fn create(self, page: &PageInfo) -> Result<PageInfo, PitchforkError> {
         let body = serde_json::to_string(page)?;
         debug!("body: {}", body);
         let req = Self {
@@ -117,18 +117,18 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
     /// This is destructive and cannot be reversed.
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// # use domo_pitchfork::pitchfork::DomoPitchfork;
     /// # let token = "token_here";
     /// let domo = DomoPitchfork::with_token(&token);
-    /// 
+    ///
     /// let page_id = 123; // id of page to delete.
     /// // if it fails to delete, print err msg
     /// if let Err(e) = domo.pages().delete(page_id) {
-    ///     println!("{}", e) 
-    /// } 
+    ///     println!("{}", e)
+    /// }
     /// ```
-    pub fn delete(mut self, page_id: u64) -> Result<(), DomoError> {
+    pub fn delete(mut self, page_id: u64) -> Result<(), PitchforkError> {
         self.url.push_str(&page_id.to_string());
         let req = Self {
             method: Method::DELETE,
@@ -137,19 +137,11 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
             resp_t: PhantomData,
             body: None,
         };
-        let res = req.send_json()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
-        }
+        req.send_json()?;
+        Ok(())
     }
 
-    pub fn modify(
-        mut self,
-        page_id: u64,
-        page: &PageInfo,
-    ) -> Result<PageInfo, DomoError> {
+    pub fn modify(mut self, page_id: u64, page: &PageInfo) -> Result<PageInfo, PitchforkError> {
         self.url.push_str(&page_id.to_string());
         let body = serde_json::to_string(page)?;
         debug!("body: {}", body);
@@ -164,7 +156,7 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
         Ok(ds)
     }
 
-    pub fn collections(mut self, page_id: u64) -> Result<Vec<PageCollection>, DomoError> {
+    pub fn collections(mut self, page_id: u64) -> Result<Vec<PageCollection>, PitchforkError> {
         self.url.push_str(&format!("{}/collections", page_id));
         let req = Self {
             method: Method::GET,
@@ -176,7 +168,12 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
         let ds = serde_json::from_reader(req.send_json()?)?;
         Ok(ds)
     }
-    pub fn create_collection(mut self, page_id: u64, collection: &PageCollection) -> Result<(), DomoError> {
+    // TODO: check domo does in fact return an empty body here
+    pub fn create_collection(
+        mut self,
+        page_id: u64,
+        collection: &PageCollection,
+    ) -> Result<(), PitchforkError> {
         self.url.push_str(&format!("{}/collections", page_id));
         let body = serde_json::to_string(collection)?;
         debug!("body: {}", body);
@@ -190,8 +187,14 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
         let ds = serde_json::from_reader(req.send_json()?)?;
         Ok(ds)
     }
-    pub fn modify_collection(mut self, page_id: u64, collection_id: u64, collection: &PageCollection) -> Result<(), DomoError> {
-        self.url.push_str(&format!("{}/collections/{}", page_id, collection_id));
+    pub fn modify_collection(
+        mut self,
+        page_id: u64,
+        collection_id: u64,
+        collection: &PageCollection,
+    ) -> Result<(), PitchforkError> {
+        self.url
+            .push_str(&format!("{}/collections/{}", page_id, collection_id));
         let body = serde_json::to_string(collection)?;
         debug!("body: {}", body);
         let req = Self {
@@ -201,15 +204,16 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
             resp_t: PhantomData,
             body: Some(body),
         };
-        let res = req.send_json()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
-        }
+        req.send_json()?;
+        Ok(())
     }
-    pub fn delete_collection(mut self, page_id: u64, collection_id: u64) -> Result<(), DomoError> {
-        self.url.push_str(&format!("{}/collections/{}", page_id, collection_id));
+    pub fn delete_collection(
+        mut self,
+        page_id: u64,
+        collection_id: u64,
+    ) -> Result<(), PitchforkError> {
+        self.url
+            .push_str(&format!("{}/collections/{}", page_id, collection_id));
         let req = Self {
             method: Method::DELETE,
             auth: self.auth,
@@ -217,11 +221,7 @@ impl<'t> PagesRequestBuilder<'t, PageInfo> {
             resp_t: PhantomData,
             body: None,
         };
-        let res = req.send_json()?;
-        if res.status().is_success() {
-            Ok(())
-        } else {
-            Err(DomoError::Other(format!("HTTP Status: {}", res.status())))
-        }
+        req.send_json()?;
+        Ok(())
     }
 }

@@ -4,7 +4,7 @@ use crate::domo::group::GroupInfo;
 use crate::domo::page::PageInfo;
 use crate::domo::stream::StreamDataset;
 use crate::domo::user::User;
-use crate::error::DomoError;
+use crate::error::{PitchforkError, PitchforkErrorKind};
 use lazy_static::lazy_static;
 use reqwest::Client;
 use reqwest::Method;
@@ -256,7 +256,7 @@ pub trait BaseRequest {
 
 /// Defines Domo Requests
 pub trait DomoRequest<T>: BaseRequest {
-    fn run(&self) -> Result<T, DomoError>
+    fn run(&self) -> Result<T, PitchforkError>
     where
         for<'de> T: DeserializeOwned,
     {
@@ -273,10 +273,11 @@ pub trait DomoRequest<T>: BaseRequest {
             Ok(res)
         } else {
             eprintln!("response: {:?}", &response);
-            Err(DomoError::Other("post csv file".to_owned()))
+            let code = response.status().as_u16();
+            Err(PitchforkErrorKind::DomoBadRequest(code, response.text()?).into())
         }
     }
-    fn retrieve_and_deserialize_json(&self) -> Result<T, DomoError>
+    fn retrieve_and_deserialize_json(&self) -> Result<T, PitchforkError>
     where
         for<'de> T: DeserializeOwned,
     {
@@ -292,11 +293,12 @@ pub trait DomoRequest<T>: BaseRequest {
             let res: T = response.json()?;
             Ok(res)
         } else {
-            Err(DomoError::Other(response.text()?))
+            let code = response.status().as_u16();
+            Err(PitchforkErrorKind::DomoBadRequest(code, response.text()?).into())
         }
     }
 
-    fn send_csv(&self) -> Result<reqwest::Response, DomoError> {
+    fn send_csv(&self) -> Result<reqwest::Response, PitchforkError> {
         let mut response = CLIENT
             .request(self.method(), self.url())
             .bearer_auth(self.auth())
@@ -306,10 +308,11 @@ pub trait DomoRequest<T>: BaseRequest {
         if response.status().is_success() {
             Ok(response)
         } else {
-            Err(DomoError::Other(response.text()?))
+            let code = response.status().as_u16();
+            Err(PitchforkErrorKind::DomoBadRequest(code, response.text()?).into())
         }
     }
-    fn send_json(&self) -> Result<reqwest::Response, DomoError> {
+    fn send_json(&self) -> Result<reqwest::Response, PitchforkError> {
         let mut response = CLIENT
             .request(self.method(), self.url())
             .bearer_auth(self.auth())
@@ -319,7 +322,8 @@ pub trait DomoRequest<T>: BaseRequest {
         if response.status().is_success() {
             Ok(response)
         } else {
-            Err(DomoError::Other(response.text()?))
+            let code = response.status().as_u16();
+            Err(PitchforkErrorKind::DomoBadRequest(code, response.text()?).into())
         }
     }
 }
@@ -328,7 +332,6 @@ pub trait DomoRequest<T>: BaseRequest {
 mod tests {
     use super::*;
     use crate::auth::DomoClientAppCredentials;
-    use crate::domo::dataset::*;
     use std::env;
     #[test]
     fn test_dataset_list() {
@@ -341,7 +344,6 @@ mod tests {
         let token = client_creds.get_access_token();
         let domo = DomoPitchfork::with_token(&token);
         let ds_list = domo.datasets().list(5, 0);
-        let s_list = domo.streams().list(1, 0);
         match ds_list {
             Ok(ds) => {
                 println!("{:?}", ds);

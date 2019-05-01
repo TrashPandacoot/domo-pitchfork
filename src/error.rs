@@ -1,97 +1,123 @@
+use std::error::Error;
 use std::fmt;
 use std::io;
+
+/// used to represent all `domo_pitchfork` errors
 #[derive(Debug)]
-/// DomoPitchfork Error definitions.
-pub enum DomoError {
-    /// Errors from the reqwest crate when HTTP fails
-    Reqwest(reqwest::Error),
-    /// Errors from the csv crate when csv serialization fails.
-    Csv(csv::Error),
-    /// These are errors with ser/de JSON in RustyPitchfork.
-    Serde(serde_json::Error),
-    /// These are errors for RustyPitchfork. Not sure what I intended to
-    /// use the `usize` for. TODO: figure out why I made it a usize. If it
-    /// wasn't just something picked arbitrarily while I was learning error
-    /// handling, update the docs here to explain what/why.
-    Pitchfork(usize),
-    /// Catch-all for errors
-    Other(String),
+pub struct PitchforkError {
+    pub kind: PitchforkErrorKind,
+    source: Option<Box<dyn Error + Send + Sync + 'static>>,
 }
 
-impl fmt::Display for DomoError {
+#[derive(Debug)]
+pub enum PitchforkErrorKind {
+    /// errors from the reqwest crate.
+    Reqwest,
+    /// Errors from csv serialization failures.
+    Csv,
+    /// Errors from serialization/deserialization of JSON.
+    Serde,
+    /// Domo Server errors with HTTP response status code and response body.
+    DomoBadRequest(u16, String),
+    /// Io Error.
+    Io,
+    Unknown,
+}
+
+impl PitchforkError {
+    pub fn with_source<E>(mut self, e: E) -> Self
+    where
+        E: 'static + Error + Send + Sync,
+    {
+        self.source = Some(Box::new(e));
+        self
+    }
+
+    /// Change the `kind` for a PitchforkError
+    /// This is useful if you're trying to do something like:
+    /// Err(PitchforkError::from(e).with_kind(PitchforkErrorKind:Csv)
+    pub fn with_kind(&mut self, k: PitchforkErrorKind) {
+        self.kind = k;
+    }
+}
+
+impl Error for PitchforkError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(|boxed| boxed.as_ref() as &(dyn Error + 'static))
+    }
+}
+
+impl fmt::Display for PitchforkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DomoError::Reqwest(r) => write!(f, "Reqwest Error: {}", &r),
-            DomoError::Csv(c) => write!(f, "Csv Error: {}", &c),
-            DomoError::Serde(s) => write!(f, "Serde Error: {}", &s),
-            DomoError::Pitchfork(u) => write!(f, "Pitchfork Error: {}", u),
-            DomoError::Other(s) => write!(f, "Pitchfork Error Other: {}", &s),
+        match &self.kind {
+            PitchforkErrorKind::Reqwest => write!(f, "Reqwest Error in domo_pitchfork"),
+            PitchforkErrorKind::Csv => write!(f, "Csv Error in domo_pitchfork"),
+            PitchforkErrorKind::Serde => write!(f, "Serde Error in domo_pitchfork"),
+            PitchforkErrorKind::DomoBadRequest(status_code, response_body) => write!(f, "HTTP {}: {}", status_code, response_body),
+            PitchforkErrorKind::Unknown => write!(f, "Unknown Pitchfork Error"),
+            PitchforkErrorKind::Io => write!(f, "io::Error"),
         }
     }
 }
 
-impl From<csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>> for DomoError {
-    fn from(_err: csv::IntoInnerError<csv::Writer<std::vec::Vec<u8>>>) -> Self {
-        // TODO: figure out why I would leave this error like this.
-        // and change it to a more appropriate err type if appropriate.
-        DomoError::Pitchfork(2)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for DomoError {
-    fn from(_err: std::string::FromUtf8Error) -> Self {
-        // TODO: figure out why I would leave this error like this.
-        // and change it to a more appropriate err type if appropriate.
-        // learning effort maybe?
-        DomoError::Pitchfork(2)
-    }
-}
-
-/// Convert JSON serde errors to `DomoError` type.
-impl From<serde_json::Error> for DomoError {
-    fn from(err: serde_json::Error) -> Self {
-        DomoError::Serde(err)
-    }
-}
-
-/// Convert csv crate errors into `DomoError` type.
-// This would likely be an error serializing to csv.
-impl From<csv::Error> for DomoError {
-    fn from(err: csv::Error) -> Self {
-        if !err.is_io_error() {
-            return DomoError::Csv(err);
+impl From<Box<dyn Error + Send + Sync>> for PitchforkError {
+    fn from(e: Box<dyn Error + Send + Sync>) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Unknown,
+            source: Some(e),
         }
-        DomoError::Pitchfork(2)
     }
 }
 
-/// Convert reqwest errors to `DomoError` type.
-impl From<reqwest::Error> for DomoError {
-    fn from(err: reqwest::Error) -> Self {
-        DomoError::Reqwest(err)
+impl From<PitchforkErrorKind> for PitchforkError {
+    fn from(kind: PitchforkErrorKind) -> Self {
+        Self { kind, source: None }
     }
 }
 
-impl From<String> for DomoError {
-    fn from(err: String) -> Self {
-        DomoError::Other(err)
-    }
-}
-
-impl<'a> From<&'a str> for DomoError {
-    fn from(err: &'a str) -> Self {
-        DomoError::Other(err.to_owned())
-    }
-}
-
-impl<'a> From<io::Error> for DomoError {
+impl From<io::Error> for PitchforkError {
     fn from(err: io::Error) -> Self {
-        DomoError::Other(err.to_string())
+        Self {
+            kind: PitchforkErrorKind::Io,
+            source: Some(Box::new(err)),
+        }
     }
 }
 
-impl<'a> From<()> for DomoError {
-    fn from(_err: ()) -> Self {
-        DomoError::Other("() error".to_owned())
+impl From<reqwest::Error> for PitchforkError {
+    fn from(err: reqwest::Error) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Reqwest,
+            source: Some(Box::new(err)),
+        }
+    }
+}
+
+impl From<csv::Error> for PitchforkError {
+    fn from(err: csv::Error) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Csv,
+            source: Some(Box::new(err)),
+        }
+    }
+}
+
+impl From<serde_json::Error> for PitchforkError {
+    fn from(err: serde_json::Error) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Serde,
+            source: Some(Box::new(err)),
+        }
+    }
+}
+
+impl From<()> for PitchforkError {
+    fn from(_: ()) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Unknown,
+            source: None,
+        }
     }
 }

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use crate::pitchfork::{DomoRequest, ActivitiesRequestBuilder};
-use crate::error::DomoError;
+use crate::error::PitchforkError;
+use crate::pitchfork::{ActivitiesRequestBuilder, DomoRequest};
 use log::debug;
 use reqwest::Method;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 // [Activity Log Entry object](https://developer.domo.com/docs/activity-log-api-reference/activity-log)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct ActivityLogEntry {
 
 #[derive(Debug)]
 pub struct ActivityLogSearchQuery {
-    pub user_id: Option<String>,
+    pub user_id: Option<u64>,
     /// The start time(milliseconds) of when you want to receive log events
     pub start: u64,
     /// The end time(milliseconds) of when you want to receive log events
@@ -48,7 +48,7 @@ pub struct ActivityLogSearchQuery {
     pub offset: Option<u32>,
 }
 impl ActivityLogSearchQuery {
-    pub(crate) fn to_query_string(&mut self) -> String {
+    pub(crate) fn create_query_string(&mut self) -> String {
         let mut s = String::new();
         s.push_str("start=");
         s.push_str(&self.start.to_string());
@@ -66,17 +66,17 @@ impl ActivityLogSearchQuery {
         }
         if self.user_id.is_some() {
             s.push_str("&user=");
-            s.push_str(self.user_id.take().unwrap().as_ref());
+            s.push_str(self.user_id.take().unwrap().to_string().as_ref());
         }
         s
     }
 }
 impl<'t> ActivitiesRequestBuilder<'t, ActivityLogEntry> {
     /// Returns a list of Domo activity log entries that meet the search criteria.
-    /// 
+    ///
     /// # Example
     /// ```no_run
-    /// # use domo_pitchfork::error::DomoError;
+    /// # use domo_pitchfork::error::PitchforkError;
     /// # use domo_pitchfork::domo::activity_log::ActivityLogSearchQuery;
     /// use domo_pitchfork::pitchfork::DomoPitchfork;
     /// let domo = DomoPitchfork::with_token("token");
@@ -91,12 +91,14 @@ impl<'t> ActivitiesRequestBuilder<'t, ActivityLogEntry> {
     /// };
     /// let list = domo.audit().search(query)?;
     /// list.iter().map(|s| println!("event text: {}", s.event_text));
-    /// # Ok::<(),DomoError>(())
+    /// # Ok::<(),PitchforkError>(())
     /// ```
-    pub fn search(mut self, mut query: ActivityLogSearchQuery) -> Result<Vec<ActivityLogEntry>, DomoError> {
-        let q = query.to_query_string();
-        self.url
-            .push_str(&format!("/audit?{}", q));
+    pub fn search(
+        mut self,
+        mut query: ActivityLogSearchQuery,
+    ) -> Result<Vec<ActivityLogEntry>, PitchforkError> {
+        let q = query.create_query_string();
+        self.url.push_str(&format!("/audit?{}", q));
         debug!("[Activity Log API] {}", self.url);
         let req = Self {
             method: Method::GET,

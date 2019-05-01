@@ -1,6 +1,6 @@
 use crate::auth::DomoClientAppCredentials;
 use crate::domo::stream::StreamExecution;
-use crate::error::DomoError;
+use crate::error::{PitchforkError, PitchforkErrorKind};
 use crate::pitchfork::DomoPitchfork;
 use crossbeam;
 use csv;
@@ -10,6 +10,7 @@ use reqwest::r#async::{Client, Decoder};
 use serde;
 use serde::Serialize;
 use std::env;
+use std::error::Error;
 use std::io::{self, Cursor};
 use std::mem;
 use time::PreciseTime;
@@ -70,13 +71,13 @@ fn fetch2() -> impl Future<Item = String, Error = ()> {
 }
 
 #[doc(hidden)]
-pub fn fetchy() -> Result<(), DomoError> {
+pub fn fetchy() -> Result<(), PitchforkError> {
     let mut core = Core::new()?;
     core.run(fetch())?;
     Ok(())
 }
 #[doc(hidden)]
-pub fn fetchy2() -> Result<String, DomoError> {
+pub fn fetchy2() -> Result<String, PitchforkError> {
     let mut core = Core::new()?;
     let s = core.run(fetch2())?;
     Ok(s)
@@ -108,10 +109,14 @@ where
 /// i.e. give it a function, a vec of the input param for that function, and a stream id and it will run
 /// the function multiple times, serialize the resulting Vec of data, and upload it to Domo.
 #[doc(hidden)]
-pub fn retrieve_and_upload_rayon<F, A, T>(f: F, a: Vec<A>, stream_id: u64) -> Result<(), DomoError>
+pub fn retrieve_and_upload_rayon<F, A, T>(
+    f: F,
+    a: Vec<A>,
+    stream_id: u64,
+) -> Result<(), PitchforkError>
 where
     T: Serialize + Send,
-    F: Send + Copy + Sync + FnOnce(A) -> Result<Vec<T>, DomoError>,
+    F: Send + Copy + Sync + FnOnce(A) -> Result<Vec<T>, PitchforkError>,
     A: Send + Clone,
 {
     // Create Stream Execution:
@@ -135,19 +140,19 @@ where
         .reduce_with(|r1, r2| if r1.is_err() { r1 } else { r2 })
         .unwrap()
     {
-        println!("DomoError during data part upload: {:?}", err);
+        println!("PitchforkError during data part upload: {:?}", err);
     }
     // .unwrap_or(Ok(()))
 
     // Commit Stream Execution.
-    let _commit_result = domo_client.streams()
+    let commit_result = domo_client.streams()
         .commit_execution(stream_id, execution.id)
         // .context(format!(
         //     "Failed committing execution {} on stream {}",
         //     execution.id, stream_id
         // ))
         ?;
-    println!("Stream Execution Result: {:?}", _commit_result);
+    println!("Stream Execution Result: {:?}", commit_result);
 
     Ok(())
 }
@@ -161,10 +166,10 @@ pub fn retrieve_and_upload_data_par_fork<F, T, A>(
     f: F,
     a: Vec<A>,
     stream_id: u64,
-) -> Result<(), DomoError>
+) -> Result<(), PitchforkError>
 where
     T: Serialize + Send,
-    F: Send + Copy + Sync + FnOnce(A) -> Result<Vec<T>, DomoError>,
+    F: Send + Copy + Sync + FnOnce(A) -> Result<Vec<T>, PitchforkError>,
     A: Send + Clone,
 {
     // Create Stream Execution:
@@ -206,7 +211,10 @@ where
 /// A fork & join to chunk, serialize, and upload data in parallel. I.e. it divides the data param into
 /// several chunks, then fork & joins to serialize the chunks to csv and upload to Domo on different threads.
 #[doc(hidden)]
-pub fn upload_serializable_data_par_fork<T>(data: &[T], stream_id: u64) -> Result<(), DomoError>
+pub fn upload_serializable_data_par_fork<T>(
+    data: &[T],
+    stream_id: u64,
+) -> Result<(), PitchforkError>
 where
     T: Serialize + Send + Clone,
 {
@@ -258,7 +266,7 @@ where
 pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
     data: &[T],
     stream_id: u64,
-) -> Result<(), DomoError> {
+) -> Result<(), PitchforkError> {
     // Divide the work into several chunks.
     const NTHREADS: usize = 8;
     let worklists = split_vec_into_chunks(&data, NTHREADS);
@@ -279,7 +287,7 @@ pub fn upload_serializable_data_rayon<T: Serialize + Send + Clone>(
         .reduce_with(|r1, r2| if r1.is_err() { r1 } else { r2 })
         .unwrap()
     {
-        println!("DomoError during data part upload: {:?}", err);
+        println!("PitchforkError during data part upload: {:?}", err);
     }
     // .unwrap_or(Ok(()))
 
@@ -304,10 +312,9 @@ fn process_data<T: Serialize>(
     ex_id: u32,
     csv_part: u32,
     data_chunk: &[T],
-) -> Result<(), DomoError> {
+) -> Result<(), PitchforkError> {
     let csv = get_upload_csv_ser(&data_chunk)
-    // .context("failed to create csv from data chunk.")
-    ?;
+        .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?;
     println!("Uploading data part {} ...", csv_part);
     upload_data_part(stream_id, ex_id, csv_part, &csv)
         // .context(format!("Failed to upload data part {}", csv_part))
@@ -317,16 +324,16 @@ fn process_data<T: Serialize>(
 }
 /// Return CSV string from a Vec of Records to upload to Domo.
 #[doc(hidden)]
-fn get_upload_csv_ser<T: Serialize>(data: &[T]) -> Result<String, DomoError> {
+fn get_upload_csv_ser<T: Serialize>(
+    data: &[T],
+) -> Result<String, Box<dyn Error + Send + Sync + 'static>> {
     let mut wtr = csv::Writer::from_writer(vec![]);
     for record in data {
         wtr.serialize(record)
             // .context("Failed serializing record to CSV row")
             ?;
     }
-    let csv_str = String::from_utf8(wtr.into_inner()?)
-        // .context("Failed converting CSV wtr buffer into String")
-        ?;
+    let csv_str = String::from_utf8(wtr.into_inner()?)?;
 
     Ok(csv_str)
 }
@@ -353,7 +360,7 @@ fn upload_data_part(
     execution_id: u32,
     csv_part: u32,
     csv: &str,
-) -> Result<StreamExecution, DomoError> {
+) -> Result<StreamExecution, PitchforkError> {
     let token = get_domo_token();
     let domo_client = DomoPitchfork::with_token(&token);
     domo_client
