@@ -1,3 +1,17 @@
+<a name="v1.1.0"></a>
+## v1.1.0 (2019-05-01)
+
+
+#### Breaking Changes
+
+*   DomoError was removed and replaced by PitchforkError ([296efb91](https://github.com/quantumZebraPDX/domo-pitchfork/commit/296efb9132a94e25732a21950ad2c0c8c1afee6e))
+
+#### Features
+
+*   new error that impl's std::error::Error ([296efb91](https://github.com/quantumZebraPDX/domo-pitchfork/commit/296efb9132a94e25732a21950ad2c0c8c1afee6e))
+
+
+
 <a name="v1.0.1"></a>
 ### v1.0.1 (2019-04-25)
 
