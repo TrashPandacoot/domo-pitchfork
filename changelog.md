@@ -1,3 +1,17 @@
+<a name="v1.2.0"></a>
+## v1.2.0 (2019-05-02)
+
+
+#### Features
+
+*   add cargo features for tls options ([67acf253](https://github.com/quantumZebraPDX/domo-pitchfork/commit/67acf253f37d1b1d6069e87c24ffe2b468124947), breaks [#](https://github.com/quantumZebraPDX/domo-pitchfork/issues/))
+
+#### Breaking Changes
+
+*   removed util::common and util::unstable mods ([67acf253](https://github.com/quantumZebraPDX/domo-pitchfork/commit/67acf253f37d1b1d6069e87c24ffe2b468124947))
+
+
+
 <a name="v1.1.0"></a>
 ## v1.1.0 (2019-05-01)
 
