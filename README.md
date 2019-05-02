@@ -7,12 +7,12 @@ Domo Pitchfork is a rust lib crate for interacting with Domo's Public API. This 
 - [Changelog](changelog.md)
 
 ## Example
-```rust
+```rust,no_run
  use domo_pitchfork::auth::DomoClientAppCredentials;
- use domo_pitchfork::pitchfork::DomoPitchfork;
- use domo_pitchfork::error::DomoError;
+ use domo_pitchfork::DomoPitchfork;
+ use std::error::Error;
 
- fn main() -> Result<(), DomoError> {
+ fn main() -> Result<(), Box<dyn Error>> {
     let auth = DomoClientAppCredentials::default()
         .client_id("domo client ID here")
         .client_secret("domo secret here")
@@ -24,5 +24,6 @@ Domo Pitchfork is a rust lib crate for interacting with Domo's Public API. This 
 
     dataset_list.iter()
         .map(|ds| println!("Dataset Name: {}", ds.name.as_ref().unwrap()));
+    Ok(())
 }
 ```

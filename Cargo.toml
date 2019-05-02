@@ -30,3 +30,6 @@ log = "0.4"
 [dependencies.chrono]
 features = ["serde", "rustc-serialize"]
 version = "0.4"
+
+[dev-dependencies]
+doc-comment = "0.3"

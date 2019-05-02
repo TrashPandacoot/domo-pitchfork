@@ -30,6 +30,12 @@
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+#[cfg(test)]
+use doc_comment::doctest;
+
+#[cfg(test)]
+doctest!("../README.md");
+
 #[doc(inline)]
 pub use self::error::{PitchforkError, PitchforkErrorKind};
 #[doc(inline)]
