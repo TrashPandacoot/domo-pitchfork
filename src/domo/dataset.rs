@@ -6,7 +6,7 @@
 //! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
 use super::policy::Policy;
 use super::user::Owner;
-use crate::util::csv::serialize_to_csv_str;
+use crate::util::csv::{ deserialize_csv_str, serialize_to_csv_str};
 use serde_json::json;
 use serde_json::Value;
 
@@ -14,7 +14,7 @@ use crate::error::{PitchforkError, PitchforkErrorKind};
 use crate::pitchfork::{DatasetsRequestBuilder, DomoRequest};
 use log::debug;
 use reqwest::Method;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
@@ -165,7 +165,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         Ok(dq)
     }
 
-    /// Retrieve data from a Domo Dataset.
+    /// Retrieve data from a Domo Dataset as a csv string.
     pub fn download_data(
         mut self,
         dataset_id: &str,
@@ -176,6 +176,18 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             dataset_id, include_csv_headers
         ));
         self.send_json()?.text().map_err(PitchforkError::from)
+    }
+
+    /// Retrieve data from a Domo Dataset and Deserialize the retrieved data into a Vec<T>.
+    pub fn get_data<T: DeserializeOwned>(
+        mut self,
+        dataset_id: &str,
+    ) -> Result<Vec<T>, PitchforkError> {
+        self.url.push_str(&format!(
+            "{}/data?includeHeader=true",
+            dataset_id
+        ));
+        deserialize_csv_str(&self.send_json()?.text().map_err(PitchforkError::from)?)
     }
 
     /// Upload data to the Domo Dataset.
