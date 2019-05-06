@@ -1,3 +1,17 @@
+<a name="v1.2.1"></a>
+### v1.2.1 (2019-05-06)
+
+
+#### Documentation
+
+*   fix README example and add doctest ([07a16359](https://github.com/quantumZebraPDX/domo-pitchfork/commit/07a1635933ae14873884bc569cfb851c37b77758))
+
+#### Features
+
+* **datasets:**  add csv deserialization ([86bfb9de](https://github.com/quantumZebraPDX/domo-pitchfork/commit/86bfb9de2ddbbe80d979bccf4488566e7d0d9bda))
+
+
+
 <a name="v1.2.0"></a>
 ## v1.2.0 (2019-05-02)
 
