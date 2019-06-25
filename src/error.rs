@@ -9,7 +9,7 @@ pub struct PitchforkError {
     source: Option<Box<dyn Error + Send + Sync + 'static>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PitchforkErrorKind {
     /// errors from the reqwest crate.
     Reqwest,
@@ -25,12 +25,28 @@ pub enum PitchforkErrorKind {
 }
 
 impl PitchforkError {
+    pub fn from(e: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
+        Self {
+            kind: PitchforkErrorKind::Unknown,
+            source: Some(e.into()),
+        }
+    }
     pub fn with_source<E>(mut self, e: E) -> Self
     where
         E: 'static + Error + Send + Sync,
     {
         self.source = Some(Box::new(e));
         self
+    }
+
+    pub fn new<T>(e: T) -> Self
+    where
+        T: Into<Box<dyn Error + Send + Sync>>,
+    {
+        Self {
+            kind: PitchforkErrorKind::Unknown,
+            source: Some(e.into())
+        }
     }
 
     /// Change the `kind` for a PitchforkError
