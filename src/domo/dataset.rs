@@ -437,7 +437,7 @@ pub enum DomoDataType {
 }
 
 impl DomoDataType {
-    fn from_fieldtype(typ: FieldType) -> Self {
+    pub fn from_fieldtype(typ: FieldType) -> Self {
         match typ {
             FieldType::TNull | FieldType::TUnknown | FieldType::TUnicode => DomoDataType::STRING,
             FieldType::TInteger => DomoDataType::LONG,
