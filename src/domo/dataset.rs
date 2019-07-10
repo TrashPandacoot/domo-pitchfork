@@ -4,6 +4,7 @@
 //!
 //! Additional Resources:
 //! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
+use chrono::FixedOffset;
 use super::policy::Policy;
 use super::user::Owner;
 use crate::util::csv::{ deserialize_csv_str, serialize_to_csv_str};
@@ -19,6 +20,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
 use std::str::{self, FromStr};
+use std::fmt;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
 impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Retreives details for a `Dataset`
@@ -414,12 +417,7 @@ impl Schema {
     pub fn from_hashmap(cols: &HashMap<String, FieldType>) -> Self {
         let mut columns: Vec<Column> = Vec::new();
         for (col, typ) in cols {
-            let typ_str = match typ {
-                FieldType::TUnicode => "STRING".to_string(),
-                FieldType::TFloat => "DOUBLE".to_string(),
-                FieldType::TInteger => "LONG".to_string(),
-                _ => "STRING".to_string(),
-            };
+            let typ_str = DomoDataType::from_fieldtype(*typ).to_string();
             columns.push(Column {
                 column_type: typ_str,
                 name: col.to_string(),
@@ -439,15 +437,13 @@ pub enum DomoDataType {
 }
 
 impl DomoDataType {
-    // TODO: document where this is needed
-    #[allow(dead_code)]
     fn from_fieldtype(typ: FieldType) -> Self {
         match typ {
-            FieldType::TNull | FieldType::TUnicode => DomoDataType::STRING,
-            // TUnicode => DomoDataType::STRING,
+            FieldType::TNull | FieldType::TUnknown | FieldType::TUnicode => DomoDataType::STRING,
             FieldType::TInteger => DomoDataType::LONG,
             FieldType::TFloat => DomoDataType::DECIMAL,
-            _ => DomoDataType::STRING,
+            FieldType::TDateTime => DomoDataType::DATETIME,
+            FieldType::TDate => DomoDataType::DATE,
         }
     }
 }
@@ -457,11 +453,25 @@ impl From<DomoDataType> for String {
         match domo_type {
             DomoDataType::STRING => "STRING".to_owned(),
             DomoDataType::LONG => "LONG".to_owned(),
-            DomoDataType::DECIMAL => "DOUBLE".to_owned(),
+            DomoDataType::DECIMAL => "DECIMAL".to_owned(),
             DomoDataType::DOUBLE => "DOUBLE".to_owned(),
             DomoDataType::DATETIME => "DATETIME".to_owned(),
             DomoDataType::DATE => "DATE".to_owned(),
         }
+    }
+}
+
+impl fmt::Display for DomoDataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DomoDataType::STRING => write!(f, "STRING"),
+            DomoDataType::LONG => write!(f, "LONG"),
+            DomoDataType::DECIMAL => write!(f, "DECIMAL"),
+            DomoDataType::DOUBLE => write!(f, "DOUBLE"),
+            DomoDataType::DATETIME => write!(f, "DATETIME"),
+            DomoDataType::DATE => write!(f, "DATE"),
+        }
+        
     }
 }
 
@@ -486,6 +496,8 @@ pub enum FieldType {
     TUnicode,
     TFloat,
     TInteger,
+    TDate,
+    TDateTime,
 }
 
 impl FieldType {
@@ -507,6 +519,14 @@ impl FieldType {
                 | (FieldType::TFloat, FieldType::TUnicode) => FieldType::TUnicode,
                 (FieldType::TUnicode, FieldType::TInteger)
                 | (FieldType::TInteger, FieldType::TUnicode) => FieldType::TUnicode,
+                // Dates can degrade to Unicode strings.
+                (FieldType::TUnicode, FieldType::TDate)
+                | (FieldType::TDate, FieldType::TUnicode) => FieldType::TUnicode,
+                // DateTimes can degrade to Unicode strings
+                (FieldType::TUnicode, FieldType::TDateTime)
+                | (FieldType::TDateTime, FieldType::TUnicode) => FieldType::TUnicode,
+                // Dates and numbers degrade to Unicode strings
+                (FieldType::TDate, _) | (_, FieldType::TDate) | (FieldType::TDateTime, _) | (_, FieldType::TDateTime) => FieldType::TUnknown,
             };
     }
 
@@ -523,6 +543,30 @@ impl FieldType {
         }
         if string.parse::<f64>().is_ok() {
             return FieldType::TFloat;
+        }
+        if string.parse::<DateTime<Utc>>().is_ok() {
+            return FieldType::TDateTime;
+        }
+        if string.parse::<DateTime<FixedOffset>>().is_ok() {
+            return FieldType::TDateTime;
+        }
+        if string.parse::<NaiveDateTime>().is_ok() {
+            return FieldType::TDateTime;
+        }
+        if string.parse::<NaiveDate>().is_ok() {
+            return FieldType::TDate;
+        }
+        // look for %m/%d/%y format. i.e. 07/08/01
+        if NaiveDate::parse_from_str(string, "%D").is_ok() {
+            return  FieldType::TDate;
+        }
+        // look for %m/%d/%Y format. i.e. 07/08/2019
+        if NaiveDate::parse_from_str(string, "%m/%d/%Y").is_ok() {
+            return  FieldType::TDate;
+        }
+        // look for %v format. i.e. 8-Jul-2001
+        if NaiveDate::parse_from_str(string, "%v").is_ok() {
+            return  FieldType::TDate;
         }
         FieldType::TUnicode
     }
@@ -543,12 +587,6 @@ impl Default for FieldType {
     fn default() -> Self {
         FieldType::TNull
     }
-}
-
-// TODO: Check if this is actually needed
-#[allow(dead_code)]
-fn from_bytes<T: FromStr>(bytes: &[u8]) -> Option<T> {
-    str::from_utf8(bytes).ok().and_then(|s| s.parse().ok())
 }
 
 #[cfg(test)]
@@ -591,7 +629,34 @@ mod tests {
 
     #[test]
     fn test_fieldtype_from_sample() {
-        panic!();
+        let example_unicode = "abc123!";
+        let example_int = "123";
+        let example_float = "1.23";
+        let example_date = "2019-07-10";
+        let example_date2 = "7/10/19";
+        let example_date3 = "7/10/2019";
+        let example_date4 = "8-Jul-2019";
+        let example_datetime = "2019-07-10T16:39:57-08:00";
+        let example_datetime2 = "2019-07-10T16:39:57Z";
+        
+        let sample_unicode = FieldType::from_sample(example_unicode.as_bytes());
+        let sample_int = FieldType::from_sample(example_int.as_bytes());
+        let sample_float = FieldType::from_sample(example_float.as_bytes());
+        let sample_date = FieldType::from_sample(example_date.as_bytes());
+        let sample_date2 = FieldType::from_sample(example_date2.as_bytes());
+        let sample_date3 = FieldType::from_sample(example_date3.as_bytes());
+        let sample_date4 = FieldType::from_sample(example_date4.as_bytes());
+        let sample_datetime = FieldType::from_sample(example_datetime.as_bytes());
+        let sample_datetime2 = FieldType::from_sample(example_datetime2.as_bytes());
+        assert_eq!(FieldType::TUnicode, sample_unicode);
+        assert_eq!(FieldType::TInteger, sample_int);
+        assert_eq!(FieldType::TFloat, sample_float);
+        assert_eq!(FieldType::TDate, sample_date);
+        assert_eq!(FieldType::TDate, sample_date2);
+        assert_eq!(FieldType::TDate, sample_date3);
+        assert_eq!(FieldType::TDate, sample_date4);
+        assert_eq!(FieldType::TDateTime, sample_datetime);
+        assert_eq!(FieldType::TDateTime, sample_datetime2);
     }
 
     #[test]
