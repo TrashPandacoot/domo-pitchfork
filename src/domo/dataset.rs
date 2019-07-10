@@ -507,6 +507,8 @@ impl FieldType {
                 (FieldType::TUnicode, FieldType::TUnicode) => FieldType::TUnicode,
                 (FieldType::TFloat, FieldType::TFloat) => FieldType::TFloat,
                 (FieldType::TInteger, FieldType::TInteger) => FieldType::TInteger,
+                (FieldType::TDate, FieldType::TDate) => FieldType::TDate,
+                (FieldType::TDateTime, FieldType::TDateTime) => FieldType::TDateTime,
                 // Null does not impact the type.
                 (FieldType::TNull, any) | (any, FieldType::TNull) => any,
                 // There's no way to get around an unknown.
@@ -526,7 +528,10 @@ impl FieldType {
                 (FieldType::TUnicode, FieldType::TDateTime)
                 | (FieldType::TDateTime, FieldType::TUnicode) => FieldType::TUnicode,
                 // Dates and numbers degrade to Unicode strings
-                (FieldType::TDate, _) | (_, FieldType::TDate) | (FieldType::TDateTime, _) | (_, FieldType::TDateTime) => FieldType::TUnknown,
+                (FieldType::TDate, FieldType::TInteger) | (FieldType::TDate,  FieldType::TFloat) | (FieldType::TInteger, FieldType::TDate) | (FieldType::TFloat, FieldType::TDate) => FieldType::TUnicode,
+                (FieldType::TDateTime, FieldType::TInteger) | (FieldType::TDateTime,  FieldType::TFloat) | (FieldType::TInteger, FieldType::TDateTime) | (FieldType::TFloat, FieldType::TDateTime) => FieldType::TUnicode,
+                // DateTime can degrade to Date.
+                (FieldType::TDateTime, FieldType::TDate) | (FieldType::TDate, FieldType::TDateTime) => FieldType::TDate,
             };
     }
 
