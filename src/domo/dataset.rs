@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
-use std::str::{self, FromStr};
 use std::fmt;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
@@ -539,7 +538,7 @@ impl FieldType {
         if sample.is_empty() {
             return FieldType::TNull;
         }
-        let string = match str::from_utf8(sample) {
+        let string = match std::str::from_utf8(sample) {
             Err(_) => return FieldType::TUnknown,
             Ok(s) => s,
         };
