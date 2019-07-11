@@ -1,5 +1,4 @@
 use serde::{Serialize, de::DeserializeOwned};
-use std::error::Error;
 use crate::error::{PitchforkError,PitchforkErrorKind};
 
 /// Return CSV string from a Vec of Records to upload to Domo.

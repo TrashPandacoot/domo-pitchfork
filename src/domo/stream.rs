@@ -167,7 +167,7 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
     pub fn modify_update_method(
         mut self,
         stream_id: u64,
-        update_method: UpdateMethod,
+        update_method: &UpdateMethod,
     ) -> Result<Dataset, PitchforkError> {
         self.url.push_str(&stream_id.to_string());
         let um = match update_method {
