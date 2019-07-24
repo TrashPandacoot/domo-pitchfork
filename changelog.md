@@ -1,3 +1,30 @@
+<a name="v1.3.0"></a>
+## v1.3.0 (2019-07-24)
+
+
+#### Breaking Changes
+
+* **users:**  Fix user & group structs to match API ([2f071fc9](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2f071fc996ba17471e3fdb1dc595c4a8a533aa8f)
+
+#### Chore
+
+* **clippy:**  applied a few clippy fixes ([09eedce0](https://github.com/quantumZebraPDX/domo-pitchfork/commit/09eedce07ac33b953edd2ffe457eebed37bf27db))
+* **deps:**  updated csv crate version ([bdc790ff](https://github.com/quantumZebraPDX/domo-pitchfork/commit/bdc790ffb7fa1ced42d40612ab3ca01e26fa2de9))
+
+#### Features
+
+*   Auth scope builder ([d28c9906](https://github.com/quantumZebraPDX/domo-pitchfork/commit/d28c99067fcda8119778cf060c58f8b3bd60ab31))
+* **datasets:**  add Date/DateTime schema support ([12b37788](https://github.com/quantumZebraPDX/domo-pitchfork/commit/12b37788899b8434dcb9d49daa51e77c95fe07e5))
+
+#### Bug Fixes
+
+* **datasets:**
+  *  properly merge TDate and TDateTime ([b8fceee6](https://github.com/quantumZebraPDX/domo-pitchfork/commit/b8fceee6c9ac843349cee338d86c071e9e216ef1))
+  *  make from_fieldtype public ([5ce44992](https://github.com/quantumZebraPDX/domo-pitchfork/commit/5ce44992c032296d8adfebcf7e791b4fd3cbf227))
+* **users:**  Fix user & group structs to match API ([2f071fc9](https://github.com/quantumZebraPDX/domo-pitchfork/commit/2f071fc996ba17471e3fdb1dc595c4a8a533aa8f)
+
+
+
 <a name="v1.2.1"></a>
 ### v1.2.1 (2019-05-06)
 
