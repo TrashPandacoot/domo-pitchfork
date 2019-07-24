@@ -25,6 +25,7 @@ pub struct DomoToken {
 }
 
 /// `OAuth` authorization scopes for the Domo API
+#[derive(Default)]
 pub struct DomoScope {
     pub data: bool,
     pub user: bool,
@@ -139,6 +140,36 @@ impl DomoClientAppCredentials {
 
     pub fn client_scope(mut self, domo_scope: DomoScope) -> Self {
         self.domo_scope = domo_scope;
+        self
+    }
+
+    pub fn with_user_scope(mut self) -> Self {
+        self.domo_scope.user = true;
+        self
+    }
+
+    pub fn with_data_scope(mut self) -> Self {
+        self.domo_scope.data = true;
+        self
+    }
+    pub fn with_audit_scope(mut self) -> Self {
+        self.domo_scope.audit = true;
+        self
+    }
+    pub fn with_dashboard_scope(mut self) -> Self {
+        self.domo_scope.dashboard = true;
+        self
+    }
+    pub fn with_buzz_scope(mut self) -> Self {
+        self.domo_scope.buzz = true;
+        self
+    }
+    pub fn with_workflow_scope(mut self) -> Self {
+        self.domo_scope.workflow = true;
+        self
+    }
+    pub fn with_account_scope(mut self) -> Self {
+        self.domo_scope.account = true;
         self
     }
 
