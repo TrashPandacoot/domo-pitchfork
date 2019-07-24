@@ -29,7 +29,8 @@ pub struct GroupInfo {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Group {
-    pub id: String,
+    //    pub id: String,
+    pub id: u64, // User API started returning this as a number not a string. Found this 6/27/19.
     pub name: Option<String>,
 }
 
