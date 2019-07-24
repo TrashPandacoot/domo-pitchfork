@@ -290,6 +290,9 @@ pub trait DomoRequest<T>: BaseRequest {
             .expect("ಠ_ಠ you just got Domo'd");
 
         if response.status().is_success() {
+            //            let mut body = vec![];
+            //            std::io::copy(&mut response, &mut body);
+            //            println!("{}", String::from_utf8(body).unwrap());
             let res: T = response.json()?;
             Ok(res)
         } else {
