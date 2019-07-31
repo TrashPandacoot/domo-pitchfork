@@ -1,3 +1,13 @@
+<a name="v1.3.1"></a>
+### v1.3.1 (2019-07-31)
+
+
+#### Bug Fixes
+
+*   fixed tls feature to allow rustls to be used ([e5f7ed8a](https://github.com/quantumZebraPDX/domo-pitchfork/commit/e5f7ed8a42bf33ff61de94ab6848eb769f683881))
+
+
+
 <a name="v1.3.0"></a>
 ## v1.3.0 (2019-07-24)
 
