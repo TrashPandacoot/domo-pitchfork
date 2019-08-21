@@ -215,7 +215,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         data: &[T],
     ) -> Result<(), PitchforkError> {
         if data.is_empty() {
-            Err(PitchforkError::new("data is empty").with_kind(PitchforkErrorKind::Unknown))
+            return Err(PitchforkError::new("data is empty"));
         }
         self.url.push_str(&format!("{}/data", dataset_id));
         let req = Self {

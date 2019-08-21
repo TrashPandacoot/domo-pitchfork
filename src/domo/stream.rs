@@ -318,7 +318,7 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
         data: &[T],
     ) -> Result<StreamExecution, PitchforkError> {
         if data.is_empty() {
-            Err(PitchforkError::new("data is empty").with_kind(PitchforkErrorKind::Unknown))
+            return Err(PitchforkError::new("data is empty"));
         }
         self.url.push_str(&format!(
             "{}/executions/{}/part/{}",

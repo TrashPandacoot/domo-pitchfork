@@ -1,6 +1,6 @@
 # Domo Pitchfork
 [![crates.io](https://img.shields.io/crates/v/domo_pitchfork.svg)](https://crates.io/crates/domo_pitchfork)
-[![Documentation](https://docs.rs/domo_pitchfork/badge.svg)](https://docs.rs/domo_pitchfork/1.4.0/domo_pitchfork/)
+[![Documentation](https://docs.rs/domo_pitchfork/badge.svg)](https://docs.rs/domo_pitchfork/1.4.1/domo_pitchfork/)
 
 Domo Pitchfork is a rust lib crate for interacting with Domo's Public API. This lib is what powers the ripdomo CLI tool. 
 

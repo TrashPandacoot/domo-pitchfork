@@ -1,3 +1,18 @@
+<a name="v1.4.1"></a>
+### v1.4.1 (2019-08-21)
+
+
+#### Bug Fixes
+
+*   fixed build failure ([59bd8f9b](https://github.com/quantumZebraPDX/domo-pitchfork/commit/59bd8f9b7edceb47903befd09bba5d6f34104142))
+
+#### Chore
+
+*   Update changelog and readme ([9098e820](https://github.com/quantumZebraPDX/domo-pitchfork/commit/9098e820008aab8101b429451d814515a40734c5))
+*   update docs link to latest version ([4a03d409](https://github.com/quantumZebraPDX/domo-pitchfork/commit/4a03d409b924e61ff91600e888df27512740ecdb))
+
+
+
 <a name="v1.4.0"></a>
 ## v1.4.0 (2019-08-21)
 
