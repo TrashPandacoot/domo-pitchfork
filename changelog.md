@@ -1,3 +1,17 @@
+<a name="v1.4.0"></a>
+## v1.4.0 (2019-08-21)
+
+#### Breaking Changes
+* **util:** Added header bool param to util::csv::serialize_to_csv_str method.
+* **streams:** upload_serializable_part now returns an error if an empty array is passed in.
+* **datasets:** upload_serializable now returns an error if an empty array is passed in.
+
+#### Chore
+
+*   update docs link to latest version ([4a03d409](https://github.com/quantumZebraPDX/domo-pitchfork/commit/4a03d409b924e61ff91600e888df27512740ecdb))
+
+
+
 <a name="v1.3.1"></a>
 ### v1.3.1 (2019-07-31)
 
