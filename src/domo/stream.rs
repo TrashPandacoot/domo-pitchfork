@@ -317,11 +317,14 @@ impl<'t> StreamsRequestBuilder<'t, StreamDataset> {
         part: u32,
         data: &[T],
     ) -> Result<StreamExecution, PitchforkError> {
+        if data.is_empty() {
+            Err(PitchforkError::new("data is empty").with_kind(PitchforkErrorKind::Unknown))
+        }
         self.url.push_str(&format!(
             "{}/executions/{}/part/{}",
             stream_id, execution_id, part
         ));
-        let body = serialize_to_csv_str(&data)
+        let body = serialize_to_csv_str(&data, false)
             .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?;
         let req = Self {
             method: Method::PUT,

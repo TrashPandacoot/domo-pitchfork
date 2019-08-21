@@ -4,23 +4,23 @@
 //!
 //! Additional Resources:
 //! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
-use chrono::FixedOffset;
 use super::policy::Policy;
 use super::user::Owner;
-use crate::util::csv::{ deserialize_csv_str, serialize_to_csv_str};
+use crate::util::csv::{deserialize_csv_str, serialize_to_csv_str};
+use chrono::FixedOffset;
 use serde_json::json;
 use serde_json::Value;
 
 use crate::error::{PitchforkError, PitchforkErrorKind};
 use crate::pitchfork::{DatasetsRequestBuilder, DomoRequest};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use log::debug;
 use reqwest::Method;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::marker::PhantomData;
 use std::fmt;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use std::marker::PhantomData;
 
 impl<'t> DatasetsRequestBuilder<'t, Dataset> {
     /// Retreives details for a `Dataset`
@@ -185,10 +185,8 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         mut self,
         dataset_id: &str,
     ) -> Result<Vec<T>, PitchforkError> {
-        self.url.push_str(&format!(
-            "{}/data?includeHeader=true",
-            dataset_id
-        ));
+        self.url
+            .push_str(&format!("{}/data?includeHeader=true", dataset_id));
         deserialize_csv_str(&self.send_json()?.text().map_err(PitchforkError::from)?)
     }
 
@@ -216,6 +214,9 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
         dataset_id: &str,
         data: &[T],
     ) -> Result<(), PitchforkError> {
+        if data.is_empty() {
+            Err(PitchforkError::new("data is empty").with_kind(PitchforkErrorKind::Unknown))
+        }
         self.url.push_str(&format!("{}/data", dataset_id));
         let req = Self {
             method: Method::PUT,
@@ -223,7 +224,7 @@ impl<'t> DatasetsRequestBuilder<'t, Dataset> {
             url: self.url,
             resp_t: PhantomData,
             body: Some(
-                serialize_to_csv_str(&data)
+                serialize_to_csv_str(&data, false)
                     .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?,
             ),
         };
@@ -470,7 +471,6 @@ impl fmt::Display for DomoDataType {
             DomoDataType::DATETIME => write!(f, "DATETIME"),
             DomoDataType::DATE => write!(f, "DATE"),
         }
-        
     }
 }
 
@@ -527,10 +527,17 @@ impl FieldType {
                 (FieldType::TUnicode, FieldType::TDateTime)
                 | (FieldType::TDateTime, FieldType::TUnicode) => FieldType::TUnicode,
                 // Dates and numbers degrade to Unicode strings
-                (FieldType::TDate, FieldType::TInteger) | (FieldType::TDate,  FieldType::TFloat) | (FieldType::TInteger, FieldType::TDate) | (FieldType::TFloat, FieldType::TDate) => FieldType::TUnicode,
-                (FieldType::TDateTime, FieldType::TInteger) | (FieldType::TDateTime,  FieldType::TFloat) | (FieldType::TInteger, FieldType::TDateTime) | (FieldType::TFloat, FieldType::TDateTime) => FieldType::TUnicode,
+                (FieldType::TDate, FieldType::TInteger)
+                | (FieldType::TDate, FieldType::TFloat)
+                | (FieldType::TInteger, FieldType::TDate)
+                | (FieldType::TFloat, FieldType::TDate) => FieldType::TUnicode,
+                (FieldType::TDateTime, FieldType::TInteger)
+                | (FieldType::TDateTime, FieldType::TFloat)
+                | (FieldType::TInteger, FieldType::TDateTime)
+                | (FieldType::TFloat, FieldType::TDateTime) => FieldType::TUnicode,
                 // DateTime can degrade to Date.
-                (FieldType::TDateTime, FieldType::TDate) | (FieldType::TDate, FieldType::TDateTime) => FieldType::TDate,
+                (FieldType::TDateTime, FieldType::TDate)
+                | (FieldType::TDate, FieldType::TDateTime) => FieldType::TDate,
             };
     }
 
@@ -562,15 +569,15 @@ impl FieldType {
         }
         // look for %m/%d/%y format. i.e. 07/08/01
         if NaiveDate::parse_from_str(string, "%D").is_ok() {
-            return  FieldType::TDate;
+            return FieldType::TDate;
         }
         // look for %m/%d/%Y format. i.e. 07/08/2019
         if NaiveDate::parse_from_str(string, "%m/%d/%Y").is_ok() {
-            return  FieldType::TDate;
+            return FieldType::TDate;
         }
         // look for %v format. i.e. 8-Jul-2001
         if NaiveDate::parse_from_str(string, "%v").is_ok() {
-            return  FieldType::TDate;
+            return FieldType::TDate;
         }
         FieldType::TUnicode
     }
@@ -642,7 +649,7 @@ mod tests {
         let example_date4 = "8-Jul-2019";
         let example_datetime = "2019-07-10T16:39:57-08:00";
         let example_datetime2 = "2019-07-10T16:39:57Z";
-        
+
         let sample_unicode = FieldType::from_sample(example_unicode.as_bytes());
         let sample_int = FieldType::from_sample(example_int.as_bytes());
         let sample_float = FieldType::from_sample(example_float.as_bytes());
@@ -677,5 +684,4 @@ mod tests {
     fn test_datasetschema_from_hashmap() {
         panic!();
     }
-
 }

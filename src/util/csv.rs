@@ -4,10 +4,10 @@ use crate::error::{PitchforkError,PitchforkErrorKind};
 /// Return CSV string from a Vec of Records to upload to Domo.
 pub fn serialize_to_csv_str<T: Serialize>(
     data: &[T],
+    write_headers: bool
 ) -> Result<String, PitchforkError> {
-    const WRITE_HEADERS: bool = false;
     let mut wtr = csv::WriterBuilder::new()
-        .has_headers(WRITE_HEADERS)
+        .has_headers(write_headers)
         .from_writer(vec![]);
     for record in data {
         wtr.serialize(record).map_err(|e| PitchforkError::new(e).with_kind(PitchforkErrorKind::Csv))?;
