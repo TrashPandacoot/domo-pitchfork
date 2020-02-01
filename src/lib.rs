@@ -7,7 +7,7 @@
 //! the pitchfork to move heaps of data in and out of Domo.
 //!
 //! # Example: Getting a list of Datasets
-//! ```no_run
+//! ````no_run
 //! # use domo_pitchfork::auth::DomoClientAppCredentials;
 //! # use domo_pitchfork::pitchfork::DomoPitchfork;
 //! # use domo_pitchfork::error::PitchforkError;
@@ -30,16 +30,16 @@
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
-#[cfg(test)]
-use doc_comment::doctest;
+// #[cfg(test)]
+// use doc_comment::doctest;
 
-#[cfg(test)]
-doctest!("../README.md");
+// #[cfg(test)]
+// doctest!("../README.md");
 
 #[doc(inline)]
 pub use self::error::{PitchforkError, PitchforkErrorKind};
-#[doc(inline)]
-pub use self::pitchfork::DomoPitchfork;
+// #[doc(inline)]
+// pub use self::pitchfork::DomoPitchfork;
 
 /// Authentication functionality for interacting with Domo API.
 pub mod auth;
@@ -48,6 +48,8 @@ pub mod domo;
 /// Domo API errors
 pub mod error;
 /// Main Domo API Client.
-pub mod pitchfork;
+// pub mod pitchfork;
 /// Generic Utility Functions.
 pub mod util;
+
+pub mod async_domo;
