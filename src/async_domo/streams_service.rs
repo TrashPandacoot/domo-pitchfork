@@ -41,7 +41,7 @@ impl DomoStreamPitchfork {
         Self {
             base_url: "https://api.domo.com".to_string(),
             user_agent: "Domo Pitchfork".to_string(),
-            api_version: "v1/datasets".to_string(),
+            api_version: "v1/streams".to_string(),
             auth: DomoClientAuth::default()
                 .with_data_scope()
                 .client_id(client_id)
@@ -71,6 +71,7 @@ impl DomoStreamPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<Vec<StreamDataset>>()
                 .await?;
             Ok(resp)
@@ -96,6 +97,7 @@ impl DomoStreamPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<StreamDataset>()
                 .await?;
             Ok(resp)
@@ -131,6 +133,7 @@ impl DomoStreamPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<Vec<StreamDataset>>()
                 .await?;
             Ok(resp)
@@ -158,6 +161,7 @@ impl DomoStreamPitchfork {
                 .json(ds_meta)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<StreamDataset>()
                 .await?;
             Ok(resp)
@@ -210,6 +214,7 @@ impl DomoStreamPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<StreamExecution>()
                 .await?;
             Ok(resp)
@@ -254,6 +259,7 @@ impl DomoStreamPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
+                .error_for_status()?
                 .json::<StreamExecution>()
                 .await?;
             Ok(resp)
