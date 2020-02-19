@@ -6,10 +6,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 /// Domo auth token
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -98,13 +97,13 @@ impl DomoAuth {
 pub struct DomoClientAuth {
     pub client_id: String,
     pub client_secret: String,
-    pub(crate) auth: RefCell<Option<DomoAuth>>,
+    pub(crate) auth: Arc<Mutex<Option<DomoAuth>>>,
     pub domo_scope: DomoAuthScope,
 }
 
 impl DomoClientAuth {
     pub fn is_expired(&self) -> bool {
-        if let Some(d) = self.auth.borrow().as_ref() {
+        if let Some(d) = self.auth.lock().unwrap().as_ref() {
             dbg!(d.is_expired())
         } else {
             dbg!(true)
@@ -132,7 +131,7 @@ impl DomoClientAuth {
             Self {
                 client_id,
                 client_secret,
-                auth: RefCell::new(None),
+                auth: Arc::new(Mutex::new(None)),
                 domo_scope: scope,
             }
         } else {
@@ -148,7 +147,7 @@ impl DomoClientAuth {
             Self {
                 client_id,
                 client_secret,
-                auth: RefCell::new(None),
+                auth: Arc::new(Mutex::new(None)),
                 domo_scope: scope,
             }
         }
@@ -157,7 +156,7 @@ impl DomoClientAuth {
     /// Returns an Option reference to a valid OAuth2 access token if available.
     #[must_use]
     pub fn bearer_token(&self) -> Option<String> {
-        if let Some(token) = self.auth.borrow().as_ref() {
+        if let Some(token) = self.auth.lock().unwrap().as_ref() {
             Some(token.domo_token.access_token.to_string())
         } else {
             None
@@ -167,33 +166,41 @@ impl DomoClientAuth {
         self.domo_scope.data = true;
     }
 
-    pub async fn auth(&self) -> Result<(), PitchforkError> {
-        if self.is_expired() {
-            trace!("refreshing Domo authentication");
-            dbg!("ref Domo auth");
-            self.domo_oauth2_login().await?;
-        } else {
-            dbg!("already auth");
-            trace!("Already Authenticated");
-        }
-        Ok(())
-    }
+    // pub async fn auth(&self) -> Result<(), PitchforkError> {
+    //     if self.is_expired() {
+    //         trace!("refreshing Domo authentication");
+    //         dbg!("ref Domo auth");
+    //         self.domo_oauth2_login().await?;
+    //     } else {
+    //         dbg!("already auth");
+    //         trace!("Already Authenticated");
+    //     }
+    //     Ok(())
+    // }
     // Check if authenticated with Domo. If there's an existing Token check if it's still valid.
     // If there's no existing Token, or if the existing one has expired, re-authenticate with Domo to get a fresh DomoToken
     pub async fn authenticate(&self) -> Result<(), PitchforkError> {
-        if let Some(a) = self.auth.borrow().as_ref() {
+        let mut exp = false;
+        if let Some(a) = self.auth.clone().lock().unwrap().as_ref() {
             if a.is_expired() {
-                trace!("refreshing Domo authentication");
-                self.domo_oauth2_login().await?;
+                dbg!("refreshing Domo authentication");
+                // self.domo_oauth2_login().await?;
+                exp = true;
             } else {
                 trace!("Already Authenticated");
             }
-            Ok(())
+        // Ok(())
         } else {
             trace!("performing initial Domo authentication");
-            self.domo_oauth2_login().await?;
-            Ok(())
+            exp = true;
+            // self.domo_oauth2_login().await?;
+            // Ok(())
         }
+        if exp {
+            dbg!("refreshing Domo authentication");
+            self.domo_oauth2_login().await?;
+        }
+        Ok(())
     }
 
     // Login/OAuth2 Authentication with Domo to retrieve fresh Auth Token.
@@ -237,11 +244,16 @@ impl DomoClientAuth {
             .await
         {
             dbg!("domo login token");
-            self.auth.borrow_mut().replace(DomoAuth::new(token));
+            self.auth
+                .clone()
+                .try_lock()
+                .unwrap()
+                .replace(DomoAuth::new(token));
+            dbg!("domo login token replace");
             Ok(())
         } else {
             dbg!("domo login fetch_access_token failed");
-            self.auth.borrow_mut().take();
+            self.auth.lock().unwrap().take();
             Err(PitchforkError::from(
                 "Failed OAuth2 authentication with Domo",
             ))
@@ -336,6 +348,7 @@ async fn fetch_access_token(
     client_secret: &str,
     params: &str,
 ) -> Result<DomoToken, PitchforkError> {
+    dbg!("fetch_access_token");
     let client = Client::new();
     let url: Cow<'_, str> = [
         "https://api.domo.com/oauth/token?grant_type=client_credentials&scope=",
@@ -349,9 +362,11 @@ async fn fetch_access_token(
         .basic_auth(client_id, Some(client_secret))
         .send()
         .await?;
+    dbg!("fetch_access_token resp");
     if response.status().is_success() {
         let buf = response.text().await?;
         let token: DomoToken = serde_json::from_str(&buf).unwrap();
+        dbg!("fetch_access_token success");
         Ok(token)
     } else if let Ok(body) = response.text().await {
         error!("Failed getting Domo Auth Token: {}", body);

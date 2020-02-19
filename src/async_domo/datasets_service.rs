@@ -53,12 +53,12 @@ impl DomoDatasetPitchfork {
             limit = 50,
             offset = 0
         );
-        self.auth.auth().await?;
-        if let Some(token) = self.auth.auth.borrow().as_ref() {
+        self.auth.authenticate().await?;
+        if let Some(token) = self.auth.bearer_token() {
             let resp = self
                 .client
                 .get(&url)
-                .bearer_auth(&token.domo_token.access_token)
+                .bearer_auth(token)
                 .send()
                 .await?
                 .json::<Vec<Dataset>>()

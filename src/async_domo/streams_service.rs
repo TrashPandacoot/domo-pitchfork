@@ -63,12 +63,12 @@ impl DomoStreamPitchfork {
             limit = limit,
             offset = offset
         );
-        self.auth.auth().await?;
-        if let Some(token) = self.auth.auth.borrow().as_ref() {
+        self.auth.authenticate().await?;
+        if let Some(token) = self.auth.bearer_token() {
             let resp = self
                 .client
                 .get(&url)
-                .bearer_auth(&token.domo_token.access_token)
+                .bearer_auth(token)
                 .send()
                 .await?
                 .json::<Vec<StreamDataset>>()
