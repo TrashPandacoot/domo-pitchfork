@@ -304,7 +304,7 @@ impl DomoDatasetPitchfork {
         csv: &str,
     ) -> Result<(), PitchforkError> {
         let url = format!(
-            "{base_url}/{api_ver}/{id}",
+            "{base_url}/{api_ver}/{id}/data",
             base_url = self.base_url,
             api_ver = self.api_version,
             id = dataset_id
@@ -332,7 +332,7 @@ impl DomoDatasetPitchfork {
         data: &[T],
     ) -> Result<(), PitchforkError> {
         let url = format!(
-            "{base_url}/{api_ver}/{id}",
+            "{base_url}/{api_ver}/{id}/data",
             base_url = self.base_url,
             api_ver = self.api_version,
             id = dataset_id
