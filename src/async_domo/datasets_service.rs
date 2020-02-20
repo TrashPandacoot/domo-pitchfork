@@ -8,6 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::json;
 
+#[derive(Debug, Clone)]
 pub struct DomoDatasetPitchfork {
     pub base_url: String,
     pub user_agent: String,
@@ -289,9 +290,10 @@ impl DomoDatasetPitchfork {
                 .bearer_auth(token)
                 .send()
                 .await?
-                .json::<Vec<T>>()
+                .text()
                 .await?;
-            Ok(resp)
+            let data = crate::util::csv::deserialize_csv_str(&resp)?;
+            Ok(data)
         } else {
             Err(PitchforkError::from(
                 "Failed to Authenticate with Domo Datasets API",
@@ -316,6 +318,7 @@ impl DomoDatasetPitchfork {
                 .put(&url)
                 .bearer_auth(token)
                 .body(csv.to_string())
+                .header("Content-Type", "text/csv")
                 .send()
                 .await?
                 .error_for_status()?;
@@ -341,15 +344,21 @@ impl DomoDatasetPitchfork {
             .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?;
         self.auth.authenticate().await?;
         if let Some(token) = self.auth.bearer_token() {
-            let _ = self
+            let r = self
                 .client
                 .put(&url)
                 .bearer_auth(token)
                 .body(body)
+                .header("Content-Type", "text/csv")
                 .send()
-                .await?
-                .error_for_status()?;
-            Ok(())
+                .await?;
+            if r.status().is_success() {
+                Ok(())
+            } else {
+                let err_resp = format!("Domo request failed: ({}) {}", r.status(), r.text().await?);
+                Err(PitchforkError::from(err_resp))
+            }
+        // .error_for_status()?;
         } else {
             Err(PitchforkError::from(
                 "Failed to Authenticate with Domo Datasets API",

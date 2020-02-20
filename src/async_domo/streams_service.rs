@@ -6,8 +6,10 @@ use crate::domo::stream::StreamExecution;
 use crate::domo::stream::StreamSearchQuery;
 use crate::domo::stream::UpdateMethod;
 use crate::{PitchforkError, PitchforkErrorKind};
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+#[derive(Debug, Clone)]
 pub struct DomoStreamPitchfork {
     pub base_url: String,
     pub user_agent: String,
@@ -245,7 +247,7 @@ impl DomoStreamPitchfork {
         execution_id: usize,
     ) -> Result<StreamExecution, PitchforkError> {
         let url = format!(
-            "{base_url}/{api_ver}/{id}/executions/{exid}",
+            "{base_url}/{api_ver}/{id}/executions/{exid}/commit",
             base_url = self.base_url,
             api_ver = self.api_version,
             id = stream_id,
@@ -275,7 +277,7 @@ impl DomoStreamPitchfork {
         execution_id: usize,
     ) -> Result<(), PitchforkError> {
         let url = format!(
-            "{base_url}/{api_ver}/{id}/executions/{exid}",
+            "{base_url}/{api_ver}/{id}/executions/{exid}/abort",
             base_url = self.base_url,
             api_ver = self.api_version,
             id = stream_id,
@@ -321,6 +323,7 @@ impl DomoStreamPitchfork {
                 .put(&url)
                 .bearer_auth(token)
                 .body(body)
+                .header("Content-Type", "text/csv")
                 .send()
                 .await?
                 .error_for_status()?
@@ -355,12 +358,43 @@ impl DomoStreamPitchfork {
                 .put(&url)
                 .bearer_auth(token)
                 .body(csv_part.to_string())
+                .header("Content-Type", "text/csv")
                 .send()
                 .await?
                 .error_for_status()?
                 .json::<StreamExecution>()
                 .await?;
             Ok(se)
+        } else {
+            Err(PitchforkError::from(
+                "Failed to Authenticate with Domo Datasets API",
+            ))
+        }
+    }
+
+    // Dataset API Methods
+
+    pub async fn get_data<T: DeserializeOwned>(
+        &self,
+        dataset_id: &str,
+    ) -> Result<Vec<T>, PitchforkError> {
+        let url = format!(
+            "{base_url}/v1/datasets/{id}/data?includeHeader=true",
+            base_url = self.base_url,
+            id = dataset_id
+        );
+        self.auth.authenticate().await?;
+        if let Some(token) = self.auth.bearer_token() {
+            let resp = self
+                .client
+                .get(&url)
+                .bearer_auth(token)
+                .send()
+                .await?
+                .text()
+                .await?;
+            let data = crate::util::csv::deserialize_csv_str(&resp)?;
+            Ok(data)
         } else {
             Err(PitchforkError::from(
                 "Failed to Authenticate with Domo Datasets API",

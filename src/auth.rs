@@ -67,7 +67,7 @@ impl DomoToken {
     }
 }
 /// `OAuth` authorization scopes for the Domo API
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct DomoAuthScope {
     pub data: bool,
@@ -80,6 +80,7 @@ pub struct DomoAuthScope {
 }
 
 /// Info to store successful authentication token and keep track of expiration.
+#[derive(Debug, Clone)]
 pub struct DomoAuth {
     pub domo_token: DomoToken,
     pub token_retrieved_at: std::time::Instant,
@@ -100,6 +101,7 @@ impl DomoAuth {
     }
 }
 /// Object to use to store/retrieve access tokens for Domo API.
+#[derive(Debug, Clone)]
 pub struct DomoClientAuth {
     pub client_id: String,
     pub client_secret: String,
