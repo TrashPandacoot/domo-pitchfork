@@ -313,7 +313,7 @@ impl DomoDatasetPitchfork {
         if let Some(token) = self.auth.bearer_token() {
             let _ = self
                 .client
-                .post(&url)
+                .put(&url)
                 .bearer_auth(token)
                 .body(csv.to_string())
                 .send()
@@ -343,7 +343,7 @@ impl DomoDatasetPitchfork {
         if let Some(token) = self.auth.bearer_token() {
             let _ = self
                 .client
-                .post(&url)
+                .put(&url)
                 .bearer_auth(token)
                 .body(body)
                 .send()
