@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 // [User Object](https://developer.domo.com/docs/users-api-reference/users-2)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
-    pub id: Option<u32>,
+    pub id: Option<usize>,
     pub title: Option<String>,
     pub email: Option<String>,
     #[serde(rename = "alternateEmail")]
@@ -50,7 +50,7 @@ pub enum Role {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Owner {
-    pub id: u32,
+    pub id: usize,
     pub name: String,
 }
 // impl<'t> UsersRequestBuilder<'t, User> {

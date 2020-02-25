@@ -11,43 +11,43 @@ pub struct PageInfo {
     pub name: String,
     pub id: String,
     #[serde(rename = "parentId")]
-    pub parent_id: u64,
+    pub parent_id: usize,
     #[serde(rename = "ownerId")]
-    pub owner_id: u64,
+    pub owner_id: usize,
     pub locked: bool,
     #[serde(rename = "collectionIds")]
-    pub collection_ids: Vec<u64>,
+    pub collection_ids: Vec<usize>,
     #[serde(rename = "cardIds")]
-    pub card_ids: Vec<u64>,
+    pub card_ids: Vec<usize>,
     pub children: Vec<Page>,
     pub visibility: PageVisibility,
     #[serde(rename = "userIds")]
-    pub user_ids: Vec<u64>,
+    pub user_ids: Vec<usize>,
     #[serde(rename = "pageIds")]
-    pub page_ids: Vec<u64>,
+    pub page_ids: Vec<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Page {
-    pub id: u64,
+    pub id: usize,
     pub name: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PageVisibility {
     #[serde(rename = "userIds")]
-    pub user_ids: Vec<u64>,
+    pub user_ids: Vec<usize>,
     #[serde(rename = "pageIds")]
-    pub page_ids: Vec<u64>,
+    pub page_ids: Vec<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PageCollection {
-    pub id: u64,
+    pub id: usize,
     pub title: String,
     pub description: String,
     #[serde(rename = "cardIds")]
-    pub card_ids: Vec<u64>,
+    pub card_ids: Vec<usize>,
 }
 // impl<'t> PagesRequestBuilder<'t, PageInfo> {
 //     /// Info for a given Page

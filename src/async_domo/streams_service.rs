@@ -53,6 +53,14 @@ impl DomoStreamPitchfork {
             part_id: 0,
         }
     }
+
+    /// List Domo Streams.
+    /// Max limit is 500.
+    /// Offset is the offset of the Stream ID to begin list of streams within the response
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn list(
         &self,
         limit: usize,
@@ -84,6 +92,11 @@ impl DomoStreamPitchfork {
         }
     }
 
+    /// Retrieve details for a given Domo Stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn info(&self, stream_id: usize) -> Result<StreamDataset, PitchforkError> {
         let url = format!(
             "{base_url}/{api_ver}/{id}",
@@ -110,6 +123,11 @@ impl DomoStreamPitchfork {
         }
     }
 
+    /// Returns a list of [`StreamDataset`]s that meet the search query criteria.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn search(
         &self,
         query: &StreamSearchQuery,
@@ -145,6 +163,12 @@ impl DomoStreamPitchfork {
             ))
         }
     }
+
+    /// Create a new `StreamDataset` to create executions and upload data to.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn create(
         &self,
         ds_meta: &StreamDatasetSchema,
@@ -174,9 +198,21 @@ impl DomoStreamPitchfork {
         }
     }
 
+    /// Delete a given Domo Stream.
+    /// Warning: this action is destructive and cannot be reversed.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn delete(&self, stream_id: usize) -> Result<(), PitchforkError> {
         unimplemented!()
     }
+
+    /// Updates Stream Update Method settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn change_stream_update_method(
         &self,
         stream_id: usize,
@@ -198,6 +234,13 @@ impl DomoStreamPitchfork {
         //         };
     }
 
+    /// Create a `StreamExecution` to upload data parts to and update the data in Domo.
+    /// Warning: Creating an Execution on a Stream will abort all other Executions on that Stream.
+    /// Each Stream can only have one active Execution at a time.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn create_execution(
         &self,
         stream_id: usize,
@@ -226,6 +269,12 @@ impl DomoStreamPitchfork {
             ))
         }
     }
+
+    /// Details for a `StreamExecution` for a given `StreamDataset`
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn execution(
         &self,
         stream_id: usize,
@@ -233,6 +282,14 @@ impl DomoStreamPitchfork {
     ) -> Result<StreamExecution, PitchforkError> {
         unimplemented!()
     }
+
+    /// List Domo Executions for a given Domo Stream.
+    /// Max limit is 500.
+    /// Offset is the offset of the Stream ID to begin list of streams within the response
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn list_executions(
         &self,
         stream_id: usize,
@@ -241,6 +298,12 @@ impl DomoStreamPitchfork {
     ) -> Result<Vec<StreamExecution>, PitchforkError> {
         unimplemented!()
     }
+
+    /// Commit a stream execution and finalize insertion of dataparts into Domo Stream Dataset.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn commit_execution(
         &self,
         stream_id: usize,
@@ -271,6 +334,12 @@ impl DomoStreamPitchfork {
             ))
         }
     }
+
+    /// Abort a stream execution in progress and discard all data parts uploaded to the execution.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn abort_execution(
         &self,
         stream_id: usize,
@@ -299,6 +368,14 @@ impl DomoStreamPitchfork {
             ))
         }
     }
+
+    /// Upload a data part to a stream execution in progress where the data part
+    /// is a `Serializable` vec of T.
+    /// Parts can be uploaded simultaneously and in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn upload<T: Serialize>(
         &self,
         stream_id: usize,
@@ -336,6 +413,13 @@ impl DomoStreamPitchfork {
             ))
         }
     }
+
+    /// Upload a data part to a stream execution in progress.
+    /// Parts can be uploaded simultaneously and in any order.
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn upload_from_str(
         &self,
         stream_id: usize,
@@ -374,6 +458,9 @@ impl DomoStreamPitchfork {
 
     // Dataset API Methods
 
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn get_data<T: DeserializeOwned>(
         &self,
         dataset_id: &str,

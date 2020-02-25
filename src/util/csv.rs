@@ -1,22 +1,36 @@
-use serde::{Serialize, de::DeserializeOwned};
-use crate::error::{PitchforkError,PitchforkErrorKind};
+use crate::error::{PitchforkError, PitchforkErrorKind};
+use serde::{de::DeserializeOwned, Serialize};
 
 /// Return CSV string from a Vec of Records to upload to Domo.
+///
+/// # Errors
+///
+/// Returns `PitchforkError` if CSV serialization fails.
 pub fn serialize_to_csv_str<T: Serialize>(
     data: &[T],
-    write_headers: bool
+    write_headers: bool,
 ) -> Result<String, PitchforkError> {
     let mut wtr = csv::WriterBuilder::new()
         .has_headers(write_headers)
         .from_writer(vec![]);
     for record in data {
-        wtr.serialize(record).map_err(|e| PitchforkError::new(e).with_kind(PitchforkErrorKind::Csv))?;
+        wtr.serialize(record)
+            .map_err(|e| PitchforkError::new(e).with_kind(PitchforkErrorKind::Csv))?;
     }
-    let csv_str = String::from_utf8(wtr.into_inner().map_err(|e| PitchforkError::new(e).with_kind(PitchforkErrorKind::Csv))?).map_err(PitchforkError::new)?;
+    let csv_str = String::from_utf8(
+        wtr.into_inner()
+            .map_err(|e| PitchforkError::new(e).with_kind(PitchforkErrorKind::Csv))?,
+    )
+    .map_err(PitchforkError::new)?;
 
     Ok(csv_str)
 }
 
+/// Deserialize from CSV str.
+///
+/// # Errors
+///
+/// Returns `PitchforkError` if CSV deserialization fails.
 pub fn deserialize_csv_str<T: DeserializeOwned>(csv: &str) -> Result<Vec<T>, PitchforkError> {
     let mut rdr = csv::Reader::from_reader(csv.as_bytes());
     let output: Result<Vec<T>, csv::Error> = rdr.deserialize().collect();

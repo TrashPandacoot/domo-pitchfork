@@ -1,6 +1,6 @@
 [package]
 name = "domo_pitchfork"
-version = "2.0.0-alpha.1"
+version = "2.0.0-alpha.2"
 authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"
@@ -29,6 +29,8 @@ reqwest = { version = "0.10", default-features = false, features = ["json"] }
 
 csv = "1.1"
 log = "0.4"
+
+futures-preview = { version = "0.3.0-alpha.19" }
 
 [dependencies.chrono]
 features = ["serde", "rustc-serialize"]

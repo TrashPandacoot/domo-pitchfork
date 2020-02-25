@@ -45,13 +45,13 @@ impl PitchforkError {
     {
         Self {
             kind: PitchforkErrorKind::Unknown,
-            source: Some(e.into())
+            source: Some(e.into()),
         }
     }
 
-    /// Change the `kind` for a PitchforkError
+    /// Change the `kind` for a `PitchforkError`
     /// This is useful if you're trying to do something like:
-    /// Err(PitchforkError::from(e).with_kind(PitchforkErrorKind:Csv)
+    /// `Err(PitchforkError::from(e).with_kind(PitchforkErrorKind:Csv)`
     pub fn with_kind(&mut self, k: PitchforkErrorKind) {
         self.kind = k;
     }
@@ -71,7 +71,9 @@ impl fmt::Display for PitchforkError {
             PitchforkErrorKind::Reqwest => write!(f, "Reqwest Error in domo_pitchfork"),
             PitchforkErrorKind::Csv => write!(f, "Csv Error in domo_pitchfork"),
             PitchforkErrorKind::Serde => write!(f, "Serde Error in domo_pitchfork"),
-            PitchforkErrorKind::DomoBadRequest(status_code, response_body) => write!(f, "HTTP {}: {}", status_code, response_body),
+            PitchforkErrorKind::DomoBadRequest(status_code, response_body) => {
+                write!(f, "HTTP {}: {}", status_code, response_body)
+            }
             PitchforkErrorKind::Unknown => write!(f, "Unknown Pitchfork Error"),
             PitchforkErrorKind::Io => write!(f, "io::Error"),
         }

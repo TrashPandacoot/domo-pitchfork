@@ -174,6 +174,10 @@ impl DomoClientAuth {
 
     /// Check if authenticated with Domo. If there's an existing Token check if it's still valid.
     /// If there's no existing Token, or if the existing one has expired, re-authenticate with Domo to get a fresh `DomoToken`
+    ///
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if initial authentication or reauthentication with Domo fails.
     pub async fn authenticate(&self) -> Result<(), PitchforkError> {
         // Using this to avoid deadlock that would happen if domo_oauth2_login() was
         // called within the if let block.

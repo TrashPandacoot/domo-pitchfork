@@ -334,9 +334,9 @@ pub struct DatasetQueryData {
     pub metadata: Vec<DataQueryMetadata>,
     pub rows: Vec<Vec<Value>>, // Array of Arrays
     #[serde(rename = "numRows")]
-    pub num_rows: u64,
+    pub num_rows: usize,
     #[serde(rename = "numColumns")]
-    pub num_columns: u16,
+    pub num_columns: usize,
     #[serde(rename = "fromcache")]
     pub from_cache: bool,
 }
@@ -348,11 +348,11 @@ pub struct DataQueryMetadata {
     #[serde(rename = "dataSourceId")]
     pub data_source_id: String,
     #[serde(rename = "maxLength")]
-    pub max_length: i32,
+    pub max_length: usize,
     #[serde(rename = "minLength")]
-    pub min_length: i32,
+    pub min_length: usize,
     #[serde(rename = "periodIndex")]
-    pub period_index: i32,
+    pub period_index: usize,
 }
 ///[Dataset object](https://developer.domo.com/docs/dataset-api-reference/dataset#The%20DataSet%20object)
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -360,8 +360,8 @@ pub struct Dataset {
     pub id: String,
     pub name: Option<String>,
     pub description: Option<String>,
-    pub columns: Option<i32>,
-    pub rows: Option<i32>,
+    pub columns: Option<usize>,
+    pub rows: Option<usize>,
     pub schema: Option<Schema>,
     #[serde(rename = "createdAt")]
     pub created_at: Option<String>,
@@ -379,7 +379,7 @@ pub struct Dataset {
 pub struct DatasetSchema {
     pub name: String,
     pub description: String,
-    pub rows: u32,
+    pub rows: usize,
     pub schema: Schema,
 }
 
@@ -399,6 +399,7 @@ pub struct Column {
 }
 
 impl DatasetSchema {
+    #[must_use]
     pub fn from_hashmap(
         name: String,
         description: String,
@@ -414,6 +415,7 @@ impl DatasetSchema {
 }
 
 impl Schema {
+    #[must_use]
     pub fn from_hashmap(cols: &HashMap<String, FieldType>) -> Self {
         let mut columns: Vec<Column> = Vec::new();
         for (col, typ) in cols {
@@ -437,6 +439,7 @@ pub enum DomoDataType {
 }
 
 impl DomoDataType {
+    #[must_use]
     pub fn from_fieldtype(typ: FieldType) -> Self {
         match typ {
             FieldType::TNull | FieldType::TUnknown | FieldType::TUnicode => DomoDataType::STRING,
@@ -541,6 +544,7 @@ impl FieldType {
             };
     }
 
+    #[must_use]
     pub fn from_sample(sample: &[u8]) -> Self {
         if sample.is_empty() {
             return FieldType::TNull;
@@ -582,10 +586,12 @@ impl FieldType {
         FieldType::TUnicode
     }
 
+    #[must_use]
     pub fn is_number(self) -> bool {
         self == FieldType::TFloat || self == FieldType::TInteger
     }
 
+    #[must_use]
     pub fn is_null(self) -> bool {
         self == FieldType::TNull
     }

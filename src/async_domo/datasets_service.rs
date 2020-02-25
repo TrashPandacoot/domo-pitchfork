@@ -46,6 +46,10 @@ impl DomoDatasetPitchfork {
             client: reqwest::Client::new(),
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn list(&self) -> Result<Vec<Dataset>, PitchforkError> {
         let url = format!(
             "{base_url}/{api_ver}?limit={limit}&offset={offset}",
@@ -72,6 +76,9 @@ impl DomoDatasetPitchfork {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn info(&self, dataset_id: &str) -> Result<Dataset, PitchforkError> {
         let url = format!(
             "{base_url}/{api_ver}/{id}",
@@ -97,6 +104,9 @@ impl DomoDatasetPitchfork {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn create(&self, ds_meta: &DatasetSchema) -> Result<Dataset, PitchforkError> {
         let url = format!(
             "{base_url}/{api_ver}/",
@@ -122,6 +132,9 @@ impl DomoDatasetPitchfork {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn update_dataset_name(
         &self,
         dataset_id: &str,
@@ -152,6 +165,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn update_dataset_description(
         &self,
         dataset_id: &str,
@@ -182,6 +199,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn update_dataset_schema(
         &self,
         dataset_id: &str,
@@ -213,6 +234,9 @@ impl DomoDatasetPitchfork {
         }
     }
 
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn query_data(
         &self,
         dataset_id: &str,
@@ -243,6 +267,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn download_data(
         &self,
         dataset_id: &str,
@@ -272,6 +300,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn get_data<T: DeserializeOwned>(
         &self,
         dataset_id: &str,
@@ -300,6 +332,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn upload_data_from_str(
         &self,
         dataset_id: &str,
@@ -329,6 +365,10 @@ impl DomoDatasetPitchfork {
             ))
         }
     }
+
+    /// # Errors
+    ///
+    /// Returns `PitchforkError` if HTTP request to Domo API fails.
     pub async fn upload_data<T: Serialize>(
         &self,
         dataset_id: &str,

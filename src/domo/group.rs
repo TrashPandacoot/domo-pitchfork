@@ -15,22 +15,22 @@ use std::marker::PhantomData;
 // [Group Object](https://developer.domo.com/docs/groups-api-reference/groups-2
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GroupInfo {
-    pub id: u64,
+    pub id: usize,
     pub name: String,
     pub default: bool,
     pub active: bool,
     #[serde(rename = "creatorId")]
-    pub creator_id: u64,
+    pub creator_id: usize,
     #[serde(rename = "memberCount")]
-    pub member_count: i32,
+    pub member_count: usize,
     #[serde(rename = "userIds")]
-    pub user_ids: Vec<i32>,
+    pub user_ids: Vec<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Group {
     //    pub id: String,
-    pub id: u64, // User API started returning this as a number not a string. Found this 6/27/19.
+    pub id: usize, // User API started returning this as a number not a string. Found this 6/27/19.
     pub name: Option<String>,
 }
 
