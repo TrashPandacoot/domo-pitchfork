@@ -23,7 +23,7 @@ pub enum UpdateMethod {
 }
 pub enum StreamSearchQuery {
     DatasetId(String),
-    DatasetOwnerId(u64),
+    DatasetOwnerId(usize),
 }
 
 // /// Request Builder for Stream API Endpoints
@@ -403,7 +403,7 @@ pub enum StreamSearchQuery {
 // [Stream Object](https://developer.domo.com/docs/streams-api-reference/streams
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamDataset {
-    pub id: u64,
+    pub id: usize,
     #[serde(rename = "dataSet")]
     pub dataset: Dataset,
     #[serde(rename = "updateMethod")]
@@ -418,7 +418,7 @@ pub struct StreamDataset {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamExecution {
-    pub id: u32,
+    pub id: usize,
     #[serde(rename = "startedAt")]
     pub started_at: String,
     #[serde(rename = "endedAt")]
