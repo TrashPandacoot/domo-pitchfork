@@ -102,14 +102,14 @@ impl From<io::Error> for PitchforkError {
     }
 }
 
-impl From<reqwest::Error> for PitchforkError {
-    fn from(err: reqwest::Error) -> Self {
-        Self {
-            kind: PitchforkErrorKind::Reqwest,
-            source: Some(Box::new(err)),
-        }
-    }
-}
+// impl From<reqwest::Error> for PitchforkError {
+//     fn from(err: reqwest::Error) -> Self {
+//         Self {
+//             kind: PitchforkErrorKind::Reqwest,
+//             source: Some(Box::new(err)),
+//         }
+//     }
+// }
 
 impl From<csv::Error> for PitchforkError {
     fn from(err: csv::Error) -> Self {
@@ -137,3 +137,15 @@ impl From<()> for PitchforkError {
         }
     }
 }
+
+
+
+
+#[derive(Debug)]
+pub struct DomoErr(pub String);
+impl fmt::Display for DomoErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "There is an error: {}", self.0)
+    }
+}
+impl std::error::Error for DomoErr{}

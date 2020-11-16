@@ -6,3 +6,4 @@ pub mod page;
 pub mod policy;
 pub mod stream;
 pub mod user;
+pub mod data;

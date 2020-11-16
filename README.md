@@ -4,6 +4,10 @@
 
 Domo Pitchfork is a rust lib crate for interacting with Domo's Public API. This lib is what powers the ripdomo CLI tool. 
 
+# Pre-release
+v1.5.0-alpha.0 is a work in progress migration to the surf http client library. Not all API endpoints have been implemented yet.
+The data APIs will be prioritized in implementing first.
+
 - [Changelog](changelog.md)
 
 ## Example

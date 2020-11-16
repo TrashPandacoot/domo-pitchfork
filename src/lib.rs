@@ -30,16 +30,20 @@
 #![warn(rust_2018_idioms)]
 #![warn(clippy::all, clippy::pedantic)]
 
+use std::sync::Arc;
+
+use auth::DomoAuthClient;
 #[cfg(test)]
 use doc_comment::doctest;
+use domo::data::{datasets::DatasetApiBuilder, streams::StreamBuilder};
 
 #[cfg(test)]
 doctest!("../README.md");
 
 #[doc(inline)]
 pub use self::error::{PitchforkError, PitchforkErrorKind};
-#[doc(inline)]
-pub use self::pitchfork::DomoPitchfork;
+// #[doc(inline)]
+// pub use self::pitchfork::DomoPitchfork;
 
 /// Authentication functionality for interacting with Domo API.
 pub mod auth;
@@ -51,3 +55,42 @@ pub mod error;
 pub mod pitchfork;
 /// Generic Utility Functions.
 pub mod util;
+
+pub use crate::domo::data::stream_upload;
+
+#[derive(Clone)]
+pub struct DomoClient {
+    inner: Arc<DomoApi>
+}
+
+impl  DomoClient {
+    pub fn new<S: Into<String>>(client_id: S, secret: S) -> Self {
+        Self {
+            inner: Arc::new(DomoApi::new(client_id, secret))
+        }
+    }
+    pub fn streams(&self) -> StreamBuilder {
+        StreamBuilder {
+            client: self.inner.clone()
+        }
+    }
+    pub fn datasets(&self) -> DatasetApiBuilder {
+        DatasetApiBuilder {
+            client: self.inner.clone()
+        }
+    }
+}
+
+pub struct DomoApi {
+    auth: DomoAuthClient,
+    client: surf::Client,
+}
+
+impl DomoApi {
+    pub fn new<S: Into<String>>(domo_client_id: S, domo_secret: S) -> Self {
+        Self {
+            client: surf::Client::new(),
+            auth: DomoAuthClient::new(domo_client_id, domo_secret),
+        }
+    }
+}

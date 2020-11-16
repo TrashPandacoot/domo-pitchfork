@@ -22,3 +22,20 @@ pub fn deserialize_csv_str<T: DeserializeOwned>(csv: &str) -> Result<Vec<T>, Pit
     let output: Result<Vec<T>, csv::Error> = rdr.deserialize().collect();
     output.map_err(PitchforkError::from)
 }
+
+pub(crate) fn serialize_csv_str<T: Serialize>(
+    data: &[T],
+    write_headers: bool,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let mut wtr = csv::WriterBuilder::new()
+        .has_headers(write_headers)
+        .from_writer(vec![]);
+    for record in data {
+        wtr.serialize(record)?;
+    }
+    let csv_str = String::from_utf8(
+        wtr.into_inner()?
+    )?;
+
+    Ok(csv_str)
+}
