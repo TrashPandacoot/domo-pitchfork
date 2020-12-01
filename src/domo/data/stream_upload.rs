@@ -131,10 +131,22 @@ impl DomoExecution {
 
     async fn commit(&self) -> Result<StreamExecution, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let mut lock = self.inner.lock().unwrap();
-        let ex_id = lock.execution_id.clone().ok_or_else(||DomoErr("No Execution ID".into()))?;
+        // Check if execution has already been created. If it hasn't, i.e. the buf size for a data part
+        // was smaller than all data gathered and thus a data part was never uploaded, create an execution.
+        let ex_id = if lock.execution_id.is_none() {
+            let ex = self.create_execution().await?;
+            lock.execution_id.replace(ex.id);
+            ex.id
+        } else {
+            let e = lock.execution_id.clone().unwrap();
+            e
+        };
+        // flush the remaining buf and upload as a data part.
         let b = self.buf.lock().unwrap();
         let bod = b.clone();
         self.upload_data_part(ex_id, bod).await?;
+
+        // now that we've flushed any remaining data and uploaded, commit the execution.
         info!("commiting execution {}", ex_id);
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/commit", self.stream_id, ex_id);
         let token = &self.auth.get_token().await?;
@@ -256,6 +268,51 @@ mod tests {
                         }
                     ];
                     smol::block_on( async {
+                        domo.upload(&rows).await.expect("upload to succeed");
+                    })
+                }
+                ()
+            });
+            handles.push(h);
+        }
+
+        let mut hc = 0;
+        for h in handles {
+            h.join().unwrap();
+            hc = hc + 1;
+        }
+        assert_eq!(hc, 10);
+        smol::block_on(async {
+            d.commit().await.expect("commit shouldn't have failed");
+        });
+        println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
+    }
+
+
+    #[test]
+    fn test_stream_upload_works_when_the_buffer_size_is_not_reached_before_commit() {
+
+        let start = std::time::Instant::now();
+        let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
+        let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
+
+        let stream_id = 5706; // Test Stream
+        let d = Arc::new(DomoExecution::new(stream_id, c, s, 75000));
+        let mut handles = vec![];
+
+        for thread_num in 1..11 {
+            let domo = d.clone();
+            let h = std::thread::spawn(move || {
+                for i in 1..36 {
+                    let rows = vec![
+                        TestRow{
+                            fake_test_column: "1".into(),
+                            fake_test_column2: "2".into(),
+                            test_int: i * thread_num,
+                            ..Default::default()
+                        }
+                    ];
+                    smol::block_on(async {
                         domo.upload(&rows).await.expect("upload to succeed");
                     })
                 }
