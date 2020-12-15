@@ -172,6 +172,9 @@ impl DomoExecution {
 
 #[cfg(test)]
 mod tests {
+
+    use log::error;
+
     use super::*;
 
     #[test]
@@ -329,6 +332,43 @@ mod tests {
         assert_eq!(hc, 10);
         smol::block_on(async {
             d.commit().await.expect("commit shouldn't have failed");
+        });
+        println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
+    }
+    async fn get_datapart_for_upload(i: usize) -> Result<Vec<TestRow>,Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let rows = vec![
+            TestRow{
+                fake_test_column: "1".into(),
+                fake_test_column2: "2".into(),
+                test_int: i,
+                ..Default::default()
+            }
+        ];
+        Ok(rows)
+    } 
+
+    #[test]
+    fn test_stream_exploratory() {
+        use futures::StreamExt;
+        let start = std::time::Instant::now();
+        let stream_id = 5706; // Test Stream
+        let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
+        let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
+        smol::block_on(async {
+            // let d = Arc::new(DomoStreamUploadClient::new(stream_id, c, s, 75000));
+            let d = DomoStreamUploadClient::new(stream_id, c, s, 75000);
+            let mut strm = futures::stream::iter(0usize..40) 
+            .map(get_datapart_for_upload)
+            .buffer_unordered(500);
+            while let Some(res) = strm.next().await {
+                if let Ok(data) = res {
+                    d.upload(&data).await.unwrap_or_else(|e| {
+                        error!("{}", e);
+                        None
+                    });
+                }
+            }
+            d.commit().await.expect("commit to succeed");
         });
         println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
     }
