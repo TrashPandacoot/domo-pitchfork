@@ -61,7 +61,7 @@ pub(crate) struct DomoExecution {
     pub buffer_size: usize,
     // pub buf: Vec<T>,
     pub buf: Arc<Mutex<Vec<u8>>>,
-    client: surf::Client,
+    client: reqwest::Client,
     auth: DomoAuthClient,
 }
 
@@ -75,7 +75,7 @@ impl DomoExecution {
             current_data_part: AtomicUsize::new(0),
             buffer_size: buffer_size,
             buf: Arc::new(Mutex::new(b)),
-            client: surf::Client::new(),
+            client: reqwest::Client::new(),
             auth: DomoAuthClient::new(domo_client_id, domo_secret),
         }
     }
@@ -85,8 +85,14 @@ impl DomoExecution {
             debug!("uploading data part {}", part);
             let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/part/{}", self.stream_id, ex_id, part);
             let token = &self.auth.get_token().await?;
-            let req = surf::put(uri).header("Authorization", format!("Bearer {}", token)).header("Content-Type", "text/csv").body(bod);
-            let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+            let res = self.client
+                .put(&uri)
+                .bearer_auth(token)
+                .header("Content-Type", "text/csv")
+                .body(bod)
+                .send().await?
+                .error_for_status()?
+                .json().await?;
             Ok(res)
     }
 }
@@ -96,8 +102,13 @@ impl DomoExecution {
     async fn create_execution(&self) -> Result<StreamExecution, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let uri = format!("https://api.domo.com/v1/streams/{}/executions", self.stream_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::post(uri).header("Authorization", format!("Bearer {}", token)).header("Content-Type", "application/json");
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .post(&uri)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .send().await?
+            .error_for_status()?
+            .json().await?;
 
         Ok(res)
     }
@@ -150,8 +161,12 @@ impl DomoExecution {
         info!("commiting execution {}", ex_id);
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/commit", self.stream_id, ex_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::put(uri).header("Authorization", format!("Bearer {}", token));
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .put(&uri)
+            .bearer_auth(token)
+            .send().await?
+            .error_for_status()?
+            .json().await?;
         lock.execution_id.take();
         Ok(res)
     }
@@ -161,8 +176,12 @@ impl DomoExecution {
         let ex_id = lock.execution_id.clone().ok_or_else(||DomoErr("No Execution ID".into()))?;
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/abort", self.stream_id, ex_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::put(uri).header("Authorization", format!("Bearer {}", token));
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .put(&uri)
+            .bearer_auth(token)
+            .send().await?
+            .error_for_status()?
+            .json().await?;
         lock.execution_id.take();
         self.buf.lock().unwrap().clear();
         self.current_data_part.store(0, Ordering::Relaxed);
@@ -177,10 +196,8 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_stream_upload() {
-        smol::block_on(async {
-
+    #[tokio::test]
+    async fn test_stream_upload() {
         let start = std::time::Instant::now();
         let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
         let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
@@ -201,140 +218,138 @@ mod tests {
         domo.commit().await.expect("commit to succeed");
         assert_ne!(350, domo.current_data_part.fetch_add(0, Ordering::Relaxed));
         println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
-        })
     }
 
-    #[test]
-    fn test_stream_threaded() {
+    // #[tokio::test]
+    // async fn test_stream_threaded() {
+    //     let start = std::time::Instant::now();
+    //     let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
+    //     let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
 
-        let start = std::time::Instant::now();
-        let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
-        let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
+    //     let stream_id = 5706; // Test Stream
+    //     let d = Arc::new(DomoExecution::new(stream_id, c, s, 5000));
+    //     let mut handles = vec![];
 
-        let stream_id = 5706; // Test Stream
-        let d = Arc::new(DomoExecution::new(stream_id, c, s, 5000));
-        let mut handles = vec![];
+    //     for thread_num in 1..11 {
+    //         let domo = d.clone();
+    //         let h = std::thread::spawn(move || {
+    //             for i in 1..36 {
+    //                 let rows = vec![
+    //                     TestRow{
+    //                         fake_test_column: "1".into(),
+    //                         fake_test_column2: "2".into(),
+    //                         test_int: i * thread_num,
+    //                         ..Default::default()
+    //                     }
+    //                 ];
+    //                 smol::block_on(async {
+    //                     domo.upload(&rows).await.expect("upload to succeed");
+    //                 })
+    //             }
+    //             ()
+    //         });
+    //         handles.push(h);
+    //     }
 
-        for thread_num in 1..11 {
-            let domo = d.clone();
-            let h = std::thread::spawn(move || {
-                for i in 1..36 {
-                    let rows = vec![
-                        TestRow{
-                            fake_test_column: "1".into(),
-                            fake_test_column2: "2".into(),
-                            test_int: i * thread_num,
-                            ..Default::default()
-                        }
-                    ];
-                    smol::block_on(async {
-                        domo.upload(&rows).await.expect("upload to succeed");
-                    })
-                }
-                ()
-            });
-            handles.push(h);
-        }
+    //     let mut hc = 0;
+    //     for h in handles {
+    //         h.join().unwrap();
+    //         hc = hc + 1;
+    //     }
+    //     assert_eq!(hc, 10);
+    //     smol::block_on(async {
+    //         d.commit().await.expect("commit shouldn't have failed");
+    //     });
+    //     println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
+    // }
 
-        let mut hc = 0;
-        for h in handles {
-            h.join().unwrap();
-            hc = hc + 1;
-        }
-        assert_eq!(hc, 10);
-        smol::block_on(async {
-            d.commit().await.expect("commit shouldn't have failed");
-        });
-        println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
-    }
+    // #[tokio::test]
+    // fn test_domox_stream_threaded() {
+    //     let start = std::time::Instant::now();
+    //     let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
+    //     let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
 
-    #[test]
-    fn test_domox_stream_threaded() {
-        let start = std::time::Instant::now();
-        let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
-        let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
+    //     let stream_id = 5706; // Test Stream
+    //     let d = DomoStreamUploadClient::new(stream_id, c, s, 5000);
+    //     let mut handles = vec![];
 
-        let stream_id = 5706; // Test Stream
-        let d = DomoStreamUploadClient::new(stream_id, c, s, 5000);
-        let mut handles = vec![];
+    //     for thread_num in 1..11 {
+    //         let domo = d.clone();
+    //         let h = std::thread::spawn(move || {
+    //             for i in 1..36 {
+    //                 let rows = vec![
+    //                     TestRow{
+    //                         fake_test_column: "1".into(),
+    //                         fake_test_column2: "2".into(),
+    //                         test_int: i * thread_num,
+    //                         ..Default::default()
+    //                     }
+    //                 ];
+    //                 smol::block_on( async {
+    //                     domo.upload(&rows).await.expect("upload to succeed");
+    //                 })
+    //             }
+    //             ()
+    //         });
+    //         handles.push(h);
+    //     }
 
-        for thread_num in 1..11 {
-            let domo = d.clone();
-            let h = std::thread::spawn(move || {
-                for i in 1..36 {
-                    let rows = vec![
-                        TestRow{
-                            fake_test_column: "1".into(),
-                            fake_test_column2: "2".into(),
-                            test_int: i * thread_num,
-                            ..Default::default()
-                        }
-                    ];
-                    smol::block_on( async {
-                        domo.upload(&rows).await.expect("upload to succeed");
-                    })
-                }
-                ()
-            });
-            handles.push(h);
-        }
-
-        let mut hc = 0;
-        for h in handles {
-            h.join().unwrap();
-            hc = hc + 1;
-        }
-        assert_eq!(hc, 10);
-        smol::block_on(async {
-            d.commit().await.expect("commit shouldn't have failed");
-        });
-        println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
-    }
+    //     let mut hc = 0;
+    //     for h in handles {
+    //         h.join().unwrap();
+    //         hc = hc + 1;
+    //     }
+    //     assert_eq!(hc, 10);
+    //     smol::block_on(async {
+    //         d.commit().await.expect("commit shouldn't have failed");
+    //     });
+    //     println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
+    // }
 
 
-    #[test]
-    fn test_stream_upload_works_when_the_buffer_size_is_not_reached_before_commit() {
+    // #[tokio::test]
+    // async fn test_stream_upload_works_when_the_buffer_size_is_not_reached_before_commit() {
 
-        let start = std::time::Instant::now();
-        let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
-        let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
+    //     let start = std::time::Instant::now();
+    //     let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
+    //     let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
 
-        let stream_id = 5706; // Test Stream
-        let d = Arc::new(DomoExecution::new(stream_id, c, s, 75000));
-        let mut handles = vec![];
+    //     let stream_id = 5706; // Test Stream
+    //     let d = Arc::new(DomoExecution::new(stream_id, c, s, 75000));
+    //     let mut handles = vec![];
 
-        for thread_num in 1..11 {
-            let domo = d.clone();
-            let h = std::thread::spawn(move || {
-                for i in 1..36 {
-                    let rows = vec![
-                        TestRow{
-                            fake_test_column: "1".into(),
-                            fake_test_column2: "2".into(),
-                            test_int: i * thread_num,
-                            ..Default::default()
-                        }
-                    ];
-                    smol::block_on(async {
-                        domo.upload(&rows).await.expect("upload to succeed");
-                    })
-                }
-                ()
-            });
-            handles.push(h);
-        }
+    //     for thread_num in 1..11 {
+    //         let domo = d.clone();
+    //         let h = std::thread::spawn(move || {
+    //             for i in 1..36 {
+    //                 let rows = vec![
+    //                     TestRow{
+    //                         fake_test_column: "1".into(),
+    //                         fake_test_column2: "2".into(),
+    //                         test_int: i * thread_num,
+    //                         ..Default::default()
+    //                     }
+    //                 ];
+    //                 smol::block_on(async {
+    //                     domo.upload(&rows).await.expect("upload to succeed");
+    //                 })
+    //             }
+    //             ()
+    //         });
+    //         handles.push(h);
+    //     }
 
-        let mut hc = 0;
-        for h in handles {
-            h.join().unwrap();
-            hc = hc + 1;
-        }
-        assert_eq!(hc, 10);
-        smol::block_on(async {
-            d.commit().await.expect("commit shouldn't have failed");
-        });
-        println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
-    }
+    //     let mut hc = 0;
+    //     for h in handles {
+    //         h.join().unwrap();
+    //         hc = hc + 1;
+    //     }
+    //     assert_eq!(hc, 10);
+    //     smol::block_on(async {
+    //         d.commit().await.expect("commit shouldn't have failed");
+    //     });
+    //     println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
+    // }
     async fn get_datapart_for_upload(i: usize) -> Result<Vec<TestRow>,Box<dyn std::error::Error + Send + Sync + 'static>> {
         let rows = vec![
             TestRow{
@@ -347,29 +362,27 @@ mod tests {
         Ok(rows)
     } 
 
-    #[test]
-    fn test_stream_exploratory() {
+    #[tokio::test]
+    async fn test_stream_exploratory() {
         use futures::StreamExt;
         let start = std::time::Instant::now();
         let stream_id = 5706; // Test Stream
         let c = std::env::var("DOMO_CLIENT_ID").expect("Expected to have Domo client id var set");
         let s = std::env::var("DOMO_SECRET").expect("Expected to have Domo secret var set");
-        smol::block_on(async {
-            // let d = Arc::new(DomoStreamUploadClient::new(stream_id, c, s, 75000));
-            let d = DomoStreamUploadClient::new(stream_id, c, s, 75000);
-            let mut strm = futures::stream::iter(0usize..40) 
-            .map(get_datapart_for_upload)
-            .buffer_unordered(500);
-            while let Some(res) = strm.next().await {
-                if let Ok(data) = res {
-                    d.upload(&data).await.unwrap_or_else(|e| {
-                        error!("{}", e);
-                        None
-                    });
-                }
+
+        let d = DomoStreamUploadClient::new(stream_id, c, s, 75000);
+        let mut strm = futures::stream::iter(0usize..40) 
+        .map(get_datapart_for_upload)
+        .buffer_unordered(500);
+        while let Some(res) = strm.next().await {
+            if let Ok(data) = res {
+                d.upload(&data).await.unwrap_or_else(|e| {
+                    error!("{}", e);
+                    None
+                });
             }
-            d.commit().await.expect("commit to succeed");
-        });
+        }
+        d.commit().await.expect("commit to succeed");
         println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
     }
 

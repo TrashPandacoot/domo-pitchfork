@@ -292,8 +292,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, Arc};
 
 use std::io::Write;
-use base64;
-use base64::write::EncoderWriter as Base64Encoder;
 use log::debug;
 
 #[derive(Clone, Debug)]
@@ -366,7 +364,7 @@ pub struct DomoAuthClient {
     client_id: String,
     secret: String,
     inner: Arc<Mutex<Option<DomoAuth>>>,
-    client: surf::Client,
+    client: reqwest::Client,
 }
 
 impl DomoAuthClient {
@@ -375,7 +373,7 @@ impl DomoAuthClient {
             client_id: client_id.into(),
             secret: secret.into(),
             inner: Arc::new(Mutex::new(None)),
-            client: surf::Client::new(),
+            client: reqwest::Client::new(),
         }
     }
 
@@ -391,18 +389,15 @@ impl DomoAuthClient {
         if is_expired {
             // TODO: auth scopes
             let uri = "https://api.domo.com/oauth/token?grant_type=client_credentials&scope=data";
-            let mut header_val = b"Basic ".to_vec();
-            {
-                let mut encoder = Base64Encoder::new(&mut header_val, base64::STANDARD);
-                // The unwraps here are fine because Vec::write* is infallible.
-                write!(encoder, "{}:", self.client_id).unwrap();
-                write!(encoder, "{}", self.secret).unwrap();
-            }
 
-            let auth_header_val = String::from_utf8_lossy(&header_val);
-            let req = surf::post(uri).header("Authorization", auth_header_val.to_string());
-
-            let token = self.client.send(req).await?.body_json::<DomoToken>().await?;
+            let client = reqwest::Client::new();
+            let req = client
+                .post(uri)
+                .basic_auth(self.client_id.clone(), Some(self.secret.clone()))
+                .send().await?
+                .error_for_status()?;
+            
+            let token: DomoToken = req.json().await?;
             let access_token = token.access_token.clone();
             let refresh_cnt = if let Some(domo_auth) = lock.as_ref() {
                 domo_auth.token_refresh_count + 1

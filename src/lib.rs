@@ -83,13 +83,13 @@ impl  DomoClient {
 
 pub struct DomoApi {
     auth: DomoAuthClient,
-    client: surf::Client,
+    client: reqwest::Client,
 }
 
 impl DomoApi {
     pub fn new<S: Into<String>>(domo_client_id: S, domo_secret: S) -> Self {
         Self {
-            client: surf::Client::new(),
+            client: reqwest::Client::new(),
             auth: DomoAuthClient::new(domo_client_id, domo_secret),
         }
     }

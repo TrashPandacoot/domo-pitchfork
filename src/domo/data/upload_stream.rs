@@ -34,7 +34,7 @@ pub(crate) struct DomoStreamExecution {
     pub current_data_part: usize,
     pub buffer_size: usize,
     pub buf: Vec<u8>,
-    client: surf::Client,
+    client: reqwest::Client,
     auth: DomoAuthClient,
 }
 
@@ -48,7 +48,7 @@ impl DomoStreamExecution {
             current_data_part: 0,
             buffer_size: buffer_size,
             buf: b,
-            client: surf::Client::new(),
+            client: reqwest::Client::new(),
             auth: DomoAuthClient::new(domo_client_id, domo_secret),
         }
     }
@@ -59,8 +59,14 @@ impl DomoStreamExecution {
             debug!("uploading data part {}", part);
             let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/part/{}", self.stream_id, ex_id, part);
             let token = &self.auth.get_token().await?;
-            let req = surf::put(uri).header("Authorization", format!("Bearer {}", token)).header("Content-Type", "text/csv").body(bod);
-            let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+            let res = self.client
+                .put(&uri)
+                .bearer_auth(token)
+                .header("Content-Type", "text/csv")
+                .body(bod)
+                .send().await?
+                .error_for_status()?
+                .json().await?;
             Ok(res)
     }
 }
@@ -70,8 +76,13 @@ impl DomoStreamExecution {
     async fn create_execution(&self) -> Result<StreamExecution, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let uri = format!("https://api.domo.com/v1/streams/{}/executions", self.stream_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::post(uri).header("Authorization", format!("Bearer {}", token)).header("Content-Type", "application/json");
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .post(&uri)
+            .bearer_auth(token)
+            .header("Content-Type", "application/json")
+            .send().await?
+            .error_for_status()?
+            .json().await?;
 
         Ok(res)
     }
@@ -119,8 +130,12 @@ impl DomoStreamExecution {
         info!("commiting execution {}", ex_id);
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/commit", self.stream_id, ex_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::put(uri).header("Authorization", format!("Bearer {}", token));
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .put(&uri)
+            .bearer_auth(token)
+            .send().await?
+            .error_for_status()?
+            .json().await?;
         self.execution_id.take();
         Ok(res)
     }
@@ -129,8 +144,12 @@ impl DomoStreamExecution {
         let ex_id = self.execution_id.clone().ok_or_else(||DomoErr("No Execution ID".into()))?;
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/abort", self.stream_id, ex_id);
         let token = &self.auth.get_token().await?;
-        let req = surf::put(uri).header("Authorization", format!("Bearer {}", token));
-        let res: StreamExecution = self.client.send(req).await?.body_json().await?;
+        let res = self.client
+            .put(&uri)
+            .bearer_auth(token)
+            .send().await?
+            .error_for_status()?
+            .json().await?;
         self.execution_id.take();
         self.buf.clear();
         self.current_data_part = 0;
@@ -154,8 +173,8 @@ mod tests {
         Ok(rows)
     } 
 
-    #[test]
-    fn test_stream_exploratory() {
+    #[tokio::test]
+    async fn test_stream_exploratory() {
         use futures::StreamExt;
         let start = std::time::Instant::now();
         let stream_id = 5706; // Test Stream
@@ -166,14 +185,12 @@ mod tests {
         .map(get_datapart_for_upload)
         .buffer_unordered(500);
 
-        smol::block_on(async {
-            run_domo_stream(strm, stream_id, c, s, 750_000).await.expect("to finish upload stream")
-        });
+        run_domo_stream(strm, stream_id, c, s, 750_000).await.expect("to finish upload stream");
         println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
     }
 
-    #[test]
-    fn test_stream_threaded_exploratory() {
+    #[tokio::test]
+    async fn test_stream_threaded_exploratory() {
         use futures::StreamExt;
         let start = std::time::Instant::now();
         let stream_id = 5706; // Test Stream
@@ -186,9 +203,7 @@ mod tests {
         })
         .buffer_unordered(500);
 
-        smol::block_on(async {
-            run_domo_stream(strm, stream_id, c, s, 750_000).await.expect("to finish upload stream")
-        });
+        run_domo_stream(strm, stream_id, c, s, 750_000).await.expect("to finish upload stream");
         println!("Elapsed Time: {:?}", std::time::Instant::now().duration_since(start));
     }
 
