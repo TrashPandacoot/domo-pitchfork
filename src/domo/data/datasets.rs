@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use crate::{DomoApi, domo::dataset::{Dataset, DatasetQueryData}, error::DomoErr, util::csv::serialize_csv_str};
+use crate::{DomoApi, domo::dataset::{Dataset, DatasetQueryData}, error::{DomoApiError, DomoErr}, util::csv::serialize_csv_str};
+use log::error;
 use serde::Serialize;
 use serde_json::json;
 
@@ -81,10 +82,14 @@ impl DatasetApiUploadBuilder {
             .bearer_auth(token)
             .header("Content-Type", "text/csv")
             .body(body.clone())
-            .send().await?
-            .error_for_status()?;
-        Ok(())
-        // Err(Box::new(DomoErr(format!("{}: {}", res.status().canonical_reason(), res.body_string().await.unwrap_or_default()))))
+            .send().await?;
+        if req.status().is_client_error() {
+            let api_err: DomoApiError = req.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            Ok(())
+        }
     }
 }
 pub struct DatasetApiQueryDataBuilder {
@@ -108,11 +113,15 @@ impl DatasetApiQueryDataBuilder {
             .post(&uri)
             .bearer_auth(token)
             .json(&body)
-            .send().await?
-            .error_for_status()?;
-        let data = req.json().await?;
-        Ok(data)
-        // Err(Box::new(DomoErr(format!("{}: {}", res.status().canonical_reason(), res.body_string().await.unwrap_or_default()))))
+            .send().await?;
+        if req.status().is_client_error() {
+            let api_err: DomoApiError = req.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let data = req.error_for_status()?.json().await?;
+            Ok(data)
+        }
     }
 }
 #[derive(Serialize)]
@@ -192,10 +201,15 @@ impl DatasetApiListBuilder {
             .get("https://api.domo.com/v1/datasets")
             .query(&query)
             .bearer_auth(token)
-            .send().await?
-            .error_for_status()?;
-        let s = req.json().await?;
-        Ok(s)
+            .send().await?;
+        if req.status().is_client_error() {
+            let api_err: DomoApiError = req.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let s = req.error_for_status()?.json().await?;
+            Ok(s)
+        }
     }
 }
 

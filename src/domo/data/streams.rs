@@ -1,6 +1,7 @@
 use std::sync::Arc;
-use crate::{DomoApi, domo::stream::DomoStream};
+use crate::{DomoApi, domo::stream::DomoStream, error::DomoApiError};
 
+use log::error;
 use serde::Serialize;
 
 
@@ -66,10 +67,15 @@ impl StreamListBuilder {
             .get("https://api.domo.com/v1/streams")
             .query(&query)
             .bearer_auth(token)
-            .send().await?
-            .error_for_status()?;
-        let s = req.json().await?;
-        Ok(s)
+            .send().await?;
+        if req.status().is_client_error() {
+            let api_err: DomoApiError = req.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let data = req.error_for_status()?.json().await?;
+            Ok(data)
+        }
     }
 }
 

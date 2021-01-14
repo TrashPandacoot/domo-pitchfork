@@ -5,9 +5,9 @@
 use futures::Stream;
 use futures::StreamExt;
 use serde::Serialize;
-use crate::{auth::DomoAuthClient, domo::stream::StreamExecution};
+use crate::{auth::DomoAuthClient, domo::stream::StreamExecution, error::DomoApiError};
 use crate::error::DomoErr;
-use log::{info, debug};
+use log::{debug, error, info};
 
 pub async fn run_domo_stream<T: Serialize, S: Into<String>>(mut data: impl Stream<Item=Result<Vec<T>, Box<dyn std::error::Error + Send + Sync + 'static>>> + Unpin, stream_id: usize, domo_client_id: S, domo_secret: S, buffer_size: usize) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let mut domo = DomoStreamExecution::new(stream_id, domo_client_id, domo_secret, buffer_size);
@@ -64,10 +64,15 @@ impl DomoStreamExecution {
                 .bearer_auth(token)
                 .header("Content-Type", "text/csv")
                 .body(bod)
-                .send().await?
-                .error_for_status()?
-                .json().await?;
-            Ok(res)
+                .send().await?;
+            if res.status().is_client_error() {
+                let api_err: DomoApiError = res.json().await?;
+                error!("{}", api_err);
+                Err(Box::new(api_err))
+            } else {
+                let r = res.error_for_status()?.json().await?;
+                Ok(r)
+            }
     }
 }
 
@@ -80,11 +85,15 @@ impl DomoStreamExecution {
             .post(&uri)
             .bearer_auth(token)
             .header("Content-Type", "application/json")
-            .send().await?
-            .error_for_status()?
-            .json().await?;
-
-        Ok(res)
+            .send().await?;
+        if res.status().is_client_error() {
+            let api_err: DomoApiError = res.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let r = res.error_for_status()?.json().await?;
+            Ok(r)
+        }
     }
 
     pub async fn upload<T: Serialize>(&mut self, data: &[T]) -> Result<Option<StreamExecution>, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -133,11 +142,16 @@ impl DomoStreamExecution {
         let res = self.client
             .put(&uri)
             .bearer_auth(token)
-            .send().await?
-            .error_for_status()?
-            .json().await?;
-        self.execution_id.take();
-        Ok(res)
+            .send().await?;
+        if res.status().is_client_error() {
+            let api_err: DomoApiError = res.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let r = res.error_for_status()?.json().await?;
+            self.execution_id.take();
+            Ok(r)
+        }
     }
 
     pub async fn abort(&mut self) -> Result<StreamExecution, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -147,13 +161,18 @@ impl DomoStreamExecution {
         let res = self.client
             .put(&uri)
             .bearer_auth(token)
-            .send().await?
-            .error_for_status()?
-            .json().await?;
-        self.execution_id.take();
-        self.buf.clear();
-        self.current_data_part = 0;
-        Ok(res)
+            .send().await?;
+        if res.status().is_client_error() {
+            let api_err: DomoApiError = res.json().await?;
+            error!("{}", api_err);
+            Err(Box::new(api_err))
+        } else {
+            let r = res.error_for_status()?.json().await?;
+            self.execution_id.take();
+            self.buf.clear();
+            self.current_data_part = 0;
+            Ok(r)
+        }
     }
 }
 

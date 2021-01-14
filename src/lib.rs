@@ -41,7 +41,7 @@ use domo::data::{datasets::DatasetApiBuilder, streams::StreamBuilder};
 doctest!("../README.md");
 
 #[doc(inline)]
-pub use self::error::{PitchforkError, PitchforkErrorKind};
+pub use self::error::{DomoApiError, DomoErr};
 // #[doc(inline)]
 // pub use self::pitchfork::DomoPitchfork;
 
