@@ -8,18 +8,13 @@
 //!
 //! # Example: Getting a list of Datasets
 //! ```no_run
-//! # use domo_pitchfork::auth::DomoClientAppCredentials;
-//! # use domo_pitchfork::pitchfork::DomoPitchfork;
-//! # use domo_pitchfork::error::PitchforkError;
-//! let auth = DomoClientAppCredentials::default()
-//!     .client_id("domo client ID here")
-//!     .client_secret("domo secret here")
-//!     .build();
-//! let token = auth.get_access_token();
-//! let domo = DomoPitchfork::with_token(&token);
-//! let dataset_list = domo.datasets().list(5,0)?;
+//! # use domo_pitchfork::DomoClient;
+//! # use std::error::Error;
+//! let domo = DomoClient::new("DOMO_CLIENT_ID", "DOMO_SECRET");
+//! let dataset_list = domo.datasets().list().execute().await?;
+//! let dataset_list = domo.datasets().list().limit(5).offset(0).execute().await?; // set limits/offset/sorting
 //! dataset_list.iter().map(|ds| println!("Dataset Name: {}", ds.name.as_ref().unwrap()));
-//! # Ok::<(), PitchforkError>(())
+//! # Ok::<(), Box<dyn Error>>(())
 //! ```
 //!
 //! ## [**`DomoPitchfork`**](pitchfork/index.html)
@@ -42,8 +37,6 @@ doctest!("../README.md");
 
 #[doc(inline)]
 pub use self::error::{DomoApiError, DomoErr};
-// #[doc(inline)]
-// pub use self::pitchfork::DomoPitchfork;
 
 /// Authentication functionality for interacting with Domo API.
 pub mod auth;
@@ -51,8 +44,6 @@ pub mod auth;
 pub mod domo;
 /// Domo API errors
 pub mod error;
-/// Main Domo API Client.
-pub mod pitchfork;
 /// Generic Utility Functions.
 pub mod util;
 

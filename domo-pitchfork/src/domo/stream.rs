@@ -7,15 +7,7 @@
 //!
 use crate::domo::dataset::Dataset;
 use crate::domo::dataset::DatasetSchema;
-// use crate::error::{PitchforkError, PitchforkErrorKind};
-// use crate::pitchfork::DomoRequest;
-// use crate::pitchfork::StreamsRequestBuilder;
-// use crate::util::csv::serialize_to_csv_str;
-// use log::debug;
-// use reqwest::Method;
 use serde::{Deserialize, Serialize};
-// use serde_json::json;
-// use std::marker::PhantomData;
 
 pub enum UpdateMethod {
     Replace,
@@ -53,33 +45,6 @@ pub enum StreamSearchQuery {
 //         req.retrieve_and_deserialize_json()
 //     }
 
-//     /// List Domo Streams.
-//     /// Max limit is 500.
-//     /// Offset is the offset of the Stream ID to begin list of streams within the response
-//     ///
-//     /// # Example
-//     /// ```no_run
-//     /// # use domo_pitchfork::error::PitchforkError;
-//     /// use domo_pitchfork::pitchfork::DomoPitchfork;
-//     /// let domo = DomoPitchfork::with_token("token");
-//     /// let list = domo.streams().list(5,0)?;
-//     /// list.iter().map(|s| println!("Dataset Name: {}", s.dataset.name.as_ref().unwrap()));
-//     /// # Ok::<(),PitchforkError>(())
-//     /// ```
-//     pub fn list(mut self, limit: u32, offset: u32) -> Result<Vec<StreamDataset>, PitchforkError> {
-//         self.url
-//             .push_str(&format!("?limit={}&offset={}", limit, offset));
-//         let req = Self {
-//             method: Method::GET,
-//             auth: self.auth,
-//             url: self.url,
-//             resp_t: PhantomData,
-//             body: None,
-//         };
-//         let res = req.send_json()?;
-//         let ds_list = serde_json::from_reader(res)?;
-//         Ok(ds_list)
-//     }
 
 //     /// Returns a list of [`StreamDataset`]s that meet the search query criteria.
 //     ///
@@ -187,35 +152,6 @@ pub enum StreamSearchQuery {
 //         Ok(ds)
 //     }
 
-//     /// Create a `StreamExecution` to upload data parts to and update the data in Domo.
-//     /// Warning: Creating an Execution on a Stream will abort all other Executions on that Stream.
-//     /// Each Stream can only have one active Execution at a time.
-//     ///
-//     /// # Example
-//     /// ```no_run
-//     /// # use domo_pitchfork::error::PitchforkError;
-//     /// use domo_pitchfork::pitchfork::DomoPitchfork;
-//     /// let domo = DomoPitchfork::with_token("token");
-//     /// let stream_id = 123; // stream id to create execution for.
-//     /// let execution_info = domo.streams().create_stream_execution(stream_id)?;
-//     /// println!("Stream Execution Details: \n{:#?}", execution_info);
-//     /// # Ok::<(), PitchforkError>(())
-//     /// ```
-//     pub fn create_stream_execution(
-//         mut self,
-//         stream_id: u64,
-//     ) -> Result<StreamExecution, PitchforkError> {
-//         self.url.push_str(&format!("{}/executions", stream_id));
-//         let req = Self {
-//             method: Method::POST,
-//             auth: self.auth,
-//             url: self.url,
-//             resp_t: PhantomData,
-//             body: None,
-//         };
-//         let se = serde_json::from_reader(req.send_json()?)?;
-//         Ok(se)
-//     }
 
 //     /// Details for a `StreamExecution` for a given `StreamDataset`
 //     ///
@@ -306,99 +242,6 @@ pub enum StreamSearchQuery {
 //         let ds_list = serde_json::from_reader(req.send_csv()?)?;
 //         Ok(ds_list)
 //     }
-
-//     /// Upload a data part to a stream execution in progress where the data part
-//     /// is a `Serializable` vec of T.
-//     /// Parts can be uploaded simultaneously and in any order.
-//     pub fn upload_serializable_part<T: Serialize>(
-//         mut self,
-//         stream_id: u64,
-//         execution_id: u32,
-//         part: u32,
-//         data: &[T],
-//     ) -> Result<StreamExecution, PitchforkError> {
-//         if data.is_empty() {
-//             return Err(PitchforkError::new("data is empty"));
-//         }
-//         self.url.push_str(&format!(
-//             "{}/executions/{}/part/{}",
-//             stream_id, execution_id, part
-//         ));
-//         let body = serialize_to_csv_str(&data, false)
-//             .map_err(|e| PitchforkError::from(e).with_kind(PitchforkErrorKind::Csv))?;
-//         let req = Self {
-//             method: Method::PUT,
-//             auth: self.auth,
-//             url: self.url,
-//             resp_t: PhantomData,
-//             body: Some(body),
-//         };
-//         let ds_list = serde_json::from_reader(req.send_csv()?)?;
-//         Ok(ds_list)
-//     }
-
-//     /// Commit a stream execution and finalize insertion of dataparts into Domo Stream Dataset.
-//     ///
-//     /// # Example
-//     /// ```no_run
-//     /// # use domo_pitchfork::error::PitchforkError;
-//     /// use domo_pitchfork::pitchfork::DomoPitchfork;
-//     /// let domo = DomoPitchfork::with_token("token");
-//     /// let stream_id = 123; // stream id to finish execution for.
-//     /// let ex_id = 1; // execution id to finalize and commit.
-//     /// let execution_info = domo.streams().commit_execution(stream_id, ex_id)?;
-//     /// println!("Stream Execution Details: \n{:#?}", execution_info);
-//     /// # Ok::<(), PitchforkError>(())
-//     /// ```
-//     pub fn commit_execution(
-//         mut self,
-//         stream_id: u64,
-//         execution_id: u32,
-//     ) -> Result<StreamExecution, PitchforkError> {
-//         self.url
-//             .push_str(&format!("{}/executions/{}/commit", stream_id, execution_id));
-//         let req = Self {
-//             method: Method::PUT,
-//             auth: self.auth,
-//             url: self.url,
-//             resp_t: PhantomData,
-//             body: None,
-//         };
-//         let se = serde_json::from_reader(req.send_json()?)?;
-//         Ok(se)
-//     }
-
-//     /// Abort a stream execution in progress and discard all data parts uploaded to the execution.
-//     ///
-//     /// # Example
-//     /// ```no_run
-//     /// # use domo_pitchfork::error::PitchforkError;
-//     /// use domo_pitchfork::pitchfork::DomoPitchfork;
-//     /// let domo = DomoPitchfork::with_token("token");
-//     /// let stream_id = 123; // stream id to abort execution for.
-//     /// let ex_id = 1; // execution id to abort.
-//     /// let execution_info = domo.streams().abort_stream_execution(stream_id, ex_id)?;
-//     /// println!("Stream Execution Details: \n{:#?}", execution_info);
-//     /// # Ok::<(), PitchforkError>(())
-//     /// ```
-//     pub fn abort_stream_execution(
-//         mut self,
-//         stream_id: u64,
-//         execution_id: u32,
-//     ) -> Result<(), PitchforkError> {
-//         self.url
-//             .push_str(&format!("{}/executions/{}/abort", stream_id, execution_id));
-//         let req = Self {
-//             method: Method::PUT,
-//             auth: self.auth,
-//             url: self.url,
-//             resp_t: PhantomData,
-//             body: None,
-//         };
-//         req.send_json()?;
-//         Ok(())
-//     }
-// }
 
 // [Stream Object](https://developer.domo.com/docs/streams-api-reference/streams
 #[derive(Clone, Debug, Serialize, Deserialize)]

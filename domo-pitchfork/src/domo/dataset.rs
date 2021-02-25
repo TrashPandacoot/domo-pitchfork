@@ -6,21 +6,14 @@
 //! - [Domo Dataset API Reference](https://developer.domo.com/docs/dataset-api-reference/dataset)
 use super::policy::Policy;
 use super::user::Owner;
-// use crate::util::csv::{deserialize_csv_str, serialize_to_csv_str};
 use chrono::FixedOffset;
-// use serde_json::json;
 use serde_json::Value;
 
-// use crate::error::{PitchforkError, PitchforkErrorKind};
-// use crate::pitchfork::{DatasetsRequestBuilder, DomoRequest};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
-// use log::debug;
-// use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-// use std::marker::PhantomData;
 
 // impl<'t> DatasetsRequestBuilder<'t, Dataset> {
 //     /// Retreives details for a `Dataset`
@@ -598,6 +591,9 @@ impl Default for FieldType {
     fn default() -> Self {
         FieldType::TNull
     }
+}
+pub trait DomoSchema {
+    fn domo_dataset_schema() -> Schema;
 }
 
 #[cfg(test)]

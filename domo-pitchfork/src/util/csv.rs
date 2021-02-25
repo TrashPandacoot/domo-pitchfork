@@ -16,6 +16,7 @@ pub fn serialize_to_csv_str<T: Serialize>(
     Ok(csv_str)
 }
 
+/// Deserialize a CSV string into a Vec
 pub fn deserialize_csv_str<T: DeserializeOwned>(csv: &str) -> Result<Vec<T>, Box<dyn std::error::Error>> {
     let mut rdr = csv::Reader::from_reader(csv.as_bytes());
     let output: Result<Vec<T>, csv::Error> = rdr.deserialize().collect();
