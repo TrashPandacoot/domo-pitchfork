@@ -1,38 +1,34 @@
-use std::{any::{Any, TypeId}, collections::HashMap};
+use std::{any::{Any}, collections::HashMap};
 
-use proc_macro2::TokenStream;
-use syn::{Data, DataStruct, DeriveInput, Field, Fields, Lit, Meta, NestedMeta, Type, TypeReference};
+use proc_macro2::{Span, TokenStream};
+use syn::{Data, DataStruct, DeriveInput, Field, Fields, Lit, Meta, NestedMeta, spanned::Spanned};
 use quote::quote;
 
-use domo_pitchfork::domo::dataset::{DomoSchema, Schema, Column, DomoDataType};
-
-pub fn expand_dataset_schema(input: DeriveInput) -> TokenStream {
+pub fn expand_dataset_schema(input: DeriveInput) -> Result<TokenStream, syn::Error> {
     let st_name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-    let fields = match input.data {
-        Data::Struct(DataStruct { fields: Fields::Named(fields), ..}) => fields.named,
-        _ => panic!("this derive macro only works on structs with named fields"),
+    let fields = if let Data::Struct(DataStruct { fields: Fields::Named(fields), ..}) = input.data {
+        fields.named
+    } else {
+        return Err(syn::Error::new(st_name.span(),"this derive macro only works on structs with named fields"))
     };
 
-    let columns = fields.into_iter().map(|f| {
-        // let field_name = f.ident;
-        // let return_ty = match f.ty {
-        //     // shared references can simply be copied
-        //     Type::Reference(r @ TypeReference { mutability: None, .. }) => quote! { #r },
-        //     // fallback to adding a reference
-        //     ty => quote! { &#ty },
-        // };
-        let name = get_domo_field_name(&f);
-        let column_type = get_domo_field_type2(&f);
-        quote! {
-            Column {
-                name: #name.to_owned(),
-                column_type: #column_type.to_owned(),
-            }
-        }
-    });
+    let columns: Result<Vec<TokenStream>, syn::Error> = fields.into_iter().map(|f| {
+        let r = {
+            let name = get_domo_field_name(&f);
+            let column_type = get_domo_column_type(&f)?;
+            Ok(quote! {
+                Column {
+                    name: #name.to_owned(),
+                    column_type: #column_type.to_owned(),
+                }
+            })
+        };
+        r
+    }).collect();
+    let columns = columns?;
 
-    quote! {
+    let tokens = quote! {
         #[automatically_derived]
         impl #impl_generics #st_name #ty_generics #where_clause {
             pub fn domo_dataset_schema() -> domo_pitchfork::domo::dataset::Schema {
@@ -44,62 +40,8 @@ pub fn expand_dataset_schema(input: DeriveInput) -> TokenStream {
                 }
             }
         }
-    }
-}
-
-
-fn get_domo_field_type2(f: &Field) -> String {
-    let at = &f.attrs;
-    // dbg!(at);
-    let domo_attr = at.iter().find(|a| a.path.is_ident("domo"));
-    if let Some(d_attr) = domo_attr {
-        let dv = d_attr.parse_meta().unwrap();
-        // let attr_map: HashMap<String,String> = HashMap::new();
-        let v = match dv {
-            syn::Meta::Path(m) => { format!("{:?}", m.type_id())},
-            syn::Meta::List(m) => { 
-                let list: Vec<String> = m.nested.iter().map(|nm| {
-                    let out = match nm {
-                        NestedMeta::Lit(l) => {
-                            match l {
-                                Lit::Str(s) => s.value(),
-                                _ => "STRING".to_string(),
-                            }
-                        }
-                        NestedMeta::Meta(m) => {
-                            // dbg!(&m);
-                            let map = get_string_from_meta(m);
-                            dbg!(&map);
-                            map.get("column_type").unwrap_or(&"".to_string()).to_string()
-                        }
-                    };
-                    out
-                }).filter(|s| s != &"".to_string()).collect();
-                dbg!(&list);
-                let n = list[0].to_string();
-                n
-            },
-            syn::Meta::NameValue(m) => { format!("{:?}", m.type_id())},
-        };
-        v
-    } else {
-
-    let ty = &f.ty;
-    let stv = match ty {
-        syn::Type::Path(tp)  => {
-            let tyi = tp.path.get_ident();
-            if let Some(t) =tyi {
-                t.to_string()
-            } else {
-                "".to_string()
-            }
-        },
-        _ => unimplemented!()
     };
-    // let str_ty_val = format!("{:?}", ty);
-    let str_ty_val = map_type_to_domo_type(stv);
-    str_ty_val
-    }
+    Ok(tokens)
 }
 
 fn get_domo_field_name(f: &Field) -> String {
@@ -108,17 +50,12 @@ fn get_domo_field_name(f: &Field) -> String {
     match domo_attr {
         Some(d_attr) => {
             let dv = d_attr.parse_meta().unwrap();
-            // let attr_map: HashMap<String,String> = HashMap::new();
             let v = match dv {
-                syn::Meta::Path(m) => { format!("{:?}", m.get_ident())},
                 syn::Meta::List(m) => { 
                     let list: Vec<String> = m.nested.iter().map(|nm| {
                         let out = match nm {
-                            NestedMeta::Lit(l) => {
-                                match l {
-                                    Lit::Str(s) => s.value(),
-                                    _ => "STRING".to_string(),
-                                }
+                            NestedMeta::Lit(_) => {
+                                domo_column_name_from_ident(f)
                             }
                             NestedMeta::Meta(m) => {
                                 let map = get_string_from_meta(m);
@@ -129,21 +66,27 @@ fn get_domo_field_name(f: &Field) -> String {
                         out
                     }).filter(|s| s != &"".to_string()).collect();
                     dbg!(&list);
-                    let n = list[0].to_string();
+                    
+                    let n = list.first().map_or_else(|| domo_column_name_from_ident(f) ,|v| v.to_string());
                     n
                 },
-                syn::Meta::NameValue(m) => { format!("{}", "TODO:m")},
+                syn::Meta::Path(m) => { format!("{:?}", m.get_ident())},
+                syn::Meta::NameValue(_) => { 
+                    domo_column_name_from_ident(f)
+                },
             };
             v
         }
         None => {
-
-        let n = &f.ident;
-        // let str_ty_val = format!("{:?}", ty);
-        let str_name_val = n.as_ref().unwrap().to_string();
-        str_name_val
+            domo_column_name_from_ident(f)
         }
     }
+}
+
+fn domo_column_name_from_ident(f: &Field) -> String {
+    let n = &f.ident;
+    let str_name_val = n.as_ref().unwrap().to_string();
+    str_name_val
 }
 
 fn map_type_to_domo_type(s: String) -> String {
@@ -159,7 +102,7 @@ fn get_string_from_meta(m: &Meta) -> HashMap<String, String> {
     let mut map = HashMap::new();
     match m {
         syn::Meta::Path(m) => { 
-            map.insert("smp".to_string(), format!("get_string_from_meta {:?}", m.type_id()));
+            map.insert("get_string_from_meta Path".to_string(), format!("get_string_from_meta {:?}", m.type_id()));
         },
         syn::Meta::List(m) => { 
             m.nested.iter().for_each(|nm| {
@@ -170,7 +113,7 @@ fn get_string_from_meta(m: &Meta) -> HashMap<String, String> {
                             _ => map.insert("lit".to_string(), "gsfm not so lit".to_string()),
                         }
                     }
-                    NestedMeta::Meta(m) => map.insert("nm nm".to_string(), "gsfm ffff".to_string()),
+                    NestedMeta::Meta(_) => map.insert("nm nm".to_string(), "gsfm ffff".to_string()),
                 };
             });
         },
@@ -187,14 +130,76 @@ fn get_string_from_meta(m: &Meta) -> HashMap<String, String> {
     map 
 }
 
-// fn get_domo_type(f: &Field) -> String {
-//     let domo_type = match f.type_id() {
-//         TypeId::of::<String>() => "STRING",
-//         TypeId::of::<isize>() => "LONG",
-//         TypeId::of::<usize>() | TypeId::of::<i8>() | TypeId::of::<i16>() | TypeId::of::<i32>() | TypeId::of::<i64>() | TypeId::of::<i128>() => "LONG", // This might need to be string if Domo's actually using i64 for schemas defined with their type "LONG"
-//         TypeId::of::<f64>() => "DOUBLE",
-//         TypeId::of::<f32>() => "DOUBLE",
-//         _ => "STRING",
-//     };
-//     domo_type
-// }
+fn get_domo_column_type(f: &Field) -> Result<String, syn::Error> {
+    let at = &f.attrs;
+    let domo_attr = at.iter().find(|a| a.path.is_ident("domo"));
+    if let Some(d_attr) = domo_attr {
+        let dv = d_attr.parse_meta()?;
+        let span = dv.span();
+        let v = match dv {
+            syn::Meta::List(m) => { 
+                let list: Vec<String> = m.nested.iter().map(|nm| {
+                    let out = match nm {
+                        NestedMeta::Lit(l) => {
+                            match l {
+                                // Lit::Str(s) => sanitize_domo_column_type(s.value(), l.span()).unwrap(),
+                                Lit::Str(s) => s.value(),
+                                // TODO: panic instead of implicitly going to STRING?
+                                _ => "STRING".to_string(),
+                            }
+                        }
+                        NestedMeta::Meta(m) => {
+                            // dbg!(&m);
+                            let map = get_string_from_meta(m);
+                            dbg!(&map);
+                            map.get("column_type").unwrap_or(&"".to_string()).to_string()
+                        }
+                    };
+                    out
+                }).filter(|s| s != &"".to_string()).collect();
+                dbg!(&list);
+                let n = list.first().map_or_else(|| get_domo_column_type_from_ident_ty(f), |v| v.to_string());
+                n
+            },
+            syn::Meta::Path(m) => { format!("{:?}", m.type_id())},
+            syn::Meta::NameValue(m) => { format!("{:?}", m.type_id())},
+        };
+        Ok(sanitize_domo_column_type(v, span)?)
+    } else {
+        let str_ty_val = get_domo_column_type_from_ident_ty(f);
+        Ok(str_ty_val)
+    }
+}
+
+fn get_domo_column_type_from_ident_ty(f: &Field) -> String {
+    let ty = &f.ty;
+    let stv = match ty {
+        syn::Type::Path(tp)  => {
+            let tyi = tp.path.get_ident();
+            if let Some(t) =tyi {
+                t.to_string()
+            } else {
+                "".to_string()
+            }
+        },
+        _ => unimplemented!()
+    };
+    // let str_ty_val = format!("{:?}", ty);
+    let str_ty_val = map_type_to_domo_type(stv);
+    str_ty_val
+}
+
+fn sanitize_domo_column_type(raw: String, span: Span) -> Result<String, syn::Error> {
+    match raw.as_str() {
+        "LONG" => { Ok(raw) },
+        "DOUBLE" => { Ok(raw) },
+        "DECIMAL" => { Ok(raw) },
+        "DATE" => { Ok(raw) },
+        "DATETIME" => { Ok(raw) },
+        "STRING" => { Ok(raw) },
+        _ => {
+            // panic!("the value {} is not a recognized Domo Column Type.", raw);
+            Err(syn::Error::new(span, format!("the value {} is not a recognized Domo Column Type.", raw)))
+        }
+    }
+}

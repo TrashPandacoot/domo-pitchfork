@@ -5,8 +5,11 @@ use domo_pitchfork::domo::dataset::{Column, Schema};
 pub struct Example {
     pub name: String,
     pub opt_name: Option<String>,
+    #[domo(name = "Number")]
     pub number: usize,
+    #[domo(name = "Float", column_type = "DOUBLE")]
     pub float: f32,
+    #[domo(column_type = "DOUBLE")]
     pub opt_float: Option<f32>,
     pub opt_number: Option<i32>,
     #[domo("DATETIME")]
@@ -27,11 +30,11 @@ fn example_ds_schema() {
                 column_type: "STRING".to_string(),
             },
             Column {
-                name: "number".to_string(),
+                name: "Number".to_string(),
                 column_type: "LONG".to_string(),
             },
             Column {
-                name: "float".to_string(),
+                name: "Float".to_string(),
                 column_type: "DOUBLE".to_string(),
             },
             Column {
