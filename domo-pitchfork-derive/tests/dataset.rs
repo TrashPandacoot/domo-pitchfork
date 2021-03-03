@@ -1,5 +1,5 @@
 use domo_pitchfork_derive::Domo;
-use domo_pitchfork::domo::dataset::{Column, Schema};
+use domo_pitchfork::domo::dataset::{Column, Schema, DomoSchema};
 
 #[derive(Domo)]
 pub struct Example {
