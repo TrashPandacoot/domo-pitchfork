@@ -1,20 +1,21 @@
-use std::{any::{Any}, collections::HashMap};
+use std::{any::Any, collections::HashMap};
 
 use proc_macro2::{Span, TokenStream};
 use syn::{Data, DataStruct, DeriveInput, Field, Fields, GenericArgument, Lit, Meta, NestedMeta, Path, PathArguments, Type, spanned::Spanned};
 use quote::{ToTokens, quote};
 
 /// derive the DomoSchema trait from the domo_pitchfork crate.
-pub fn expand_dataset_schema(input: DeriveInput) -> Result<TokenStream, syn::Error> {
+pub fn expand_dataset_schema(input: DeriveInput) -> Result<TokenStream, Vec<syn::Error>> {
     let st_name = input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let fields = if let Data::Struct(DataStruct { fields: Fields::Named(fields), ..}) = input.data {
         fields.named
     } else {
-        return Err(syn::Error::new(st_name.span(),"this derive macro only works on structs with named fields"))
+        return Err(vec![syn::Error::new(st_name.span(),"this derive macro only works on structs with named fields")])
     };
 
-    let columns: Result<Vec<TokenStream>, syn::Error> = fields.into_iter().map(|f| {
+    // collect all TokenStreams (quoted Domo Column values) and all errors.
+    let (columns, errors): (Vec<_>, Vec<_>) = fields.into_iter().map(|f| {
         let r = {
             let name = get_domo_field_name(&f);
             let column_type = get_domo_column_type(&f)?;
@@ -26,8 +27,15 @@ pub fn expand_dataset_schema(input: DeriveInput) -> Result<TokenStream, syn::Err
             })
         };
         r
-    }).collect();
-    let columns = columns?;
+    }).partition(Result::is_ok);
+
+    // Check for errors and return early if there were any failures.
+    let errors: Vec<syn::Error> = errors.into_iter().map(Result::unwrap_err).collect();
+    if !errors.is_empty() {
+        return Err(errors)
+    }
+
+    let columns: Vec<TokenStream> = columns.into_iter().map(Result::unwrap).collect();
 
     let tokens = quote! {
         #[automatically_derived]
