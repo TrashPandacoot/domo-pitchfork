@@ -43,6 +43,7 @@ pub struct ActivityLogSearchQuery {
     pub offset: Option<u32>,
 }
 impl ActivityLogSearchQuery {
+    #[allow(dead_code)]
     pub(crate) fn create_query_string(&mut self) -> String {
         let mut s = String::new();
         s.push_str("start=");

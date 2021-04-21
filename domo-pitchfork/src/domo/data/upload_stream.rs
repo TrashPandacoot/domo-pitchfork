@@ -154,6 +154,7 @@ impl DomoStreamExecution {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn abort(&mut self) -> Result<StreamExecution, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let ex_id = self.execution_id.clone().ok_or_else(||DomoErr("No Execution ID".into()))?;
         let uri = format!("https://api.domo.com/v1/streams/{}/executions/{}/abort", self.stream_id, ex_id);

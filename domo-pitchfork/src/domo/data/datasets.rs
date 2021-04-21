@@ -41,7 +41,7 @@ impl DatasetApiBuilder {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         let token = self.client.auth.get_token().await?;
         let uri = format!("https://api.domo.com/v1/datasets/{}", dataset_id);
-        let req = self
+        let _req = self
             .client
             .client
             .delete(&uri)
