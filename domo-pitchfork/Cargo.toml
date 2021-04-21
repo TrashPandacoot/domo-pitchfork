@@ -1,6 +1,6 @@
 [package]
 name = "domo_pitchfork"
-version = "1.5.1-alpha.0"
+version = "1.5.1-alpha.1"
 authors = ["Ryan T. Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"
@@ -16,8 +16,8 @@ default-tls = ["reqwest/default-tls"]
 rust-tls = ["reqwest/rustls-tls"]
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 flate2 = "1"
 csv = "1.1"
@@ -30,4 +30,4 @@ version = "0.4"
 
 [dev-dependencies]
 doc-comment = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["macros", "net", "time"] }
+tokio = { version = "1", default-features = false, features = ["macros", "net", "time"] }

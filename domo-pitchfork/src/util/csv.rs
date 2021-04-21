@@ -26,7 +26,7 @@ pub fn deserialize_csv_str<T: DeserializeOwned>(csv: &str) -> Result<Vec<T>, Box
 pub(crate) fn serialize_csv_str<T: Serialize>(
     data: &[T],
     write_headers: bool,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let mut wtr = csv::WriterBuilder::new()
         .has_headers(write_headers)
         .from_writer(vec![]);
