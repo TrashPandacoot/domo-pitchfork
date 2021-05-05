@@ -1,6 +1,6 @@
 [package]
 name = "domo_pitchfork"
-version = "2.0.0-alpha.2"
+version = "2.0.0-alpha.3"
 authors = ["Tom Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"
@@ -25,7 +25,7 @@ gzip = ["reqwest/gzip"]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 lazy_static = "1.4"
-reqwest = { version = "0.10", default-features = false, features = ["json"] }
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
 
 csv = "1.1"
 log = "0.4"
