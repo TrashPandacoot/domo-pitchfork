@@ -1,6 +1,6 @@
 [package]
 name = "domo_pitchfork"
-version = "1.5.1-alpha.1"
+version = "1.5.1-alpha.2"
 authors = ["Ryan T. Wilson <tom.wilson.pdx@outlook.com>"]
 license = "MIT"
 readme = "README.md"
@@ -23,6 +23,7 @@ flate2 = "1"
 csv = "1.1"
 log = "0.4"
 futures = "0.3"
+thiserror = "1"
 
 [dependencies.chrono]
 features = ["serde", "rustc-serialize"]

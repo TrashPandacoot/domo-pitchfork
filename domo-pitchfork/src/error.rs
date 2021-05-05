@@ -1,5 +1,9 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
+// serde error
+// reqwest error
+// DomoApiError
+// csv error
 #[derive(Debug)]
 pub struct DomoErr(pub String);
 impl fmt::Display for DomoErr {
