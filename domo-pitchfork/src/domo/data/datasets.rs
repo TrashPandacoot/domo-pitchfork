@@ -295,7 +295,7 @@ impl DatasetApiGetDataBuilder {
         &self,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let token = self.api.auth.get_token().await?;
-        let uri = format!("https://api.domo.com/v1/datasets/{}/data", self.dataset_id);
+        let uri = format!("https://api.domo.com/v1/datasets/{}/data?includeHeader={}", self.dataset_id, self.include_headers);
         let req = self
             .api
             .client
